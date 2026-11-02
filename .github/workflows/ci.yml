@@ -1,0 +1,56 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo build --locked
+      - name: The spec's own examples decode, and the crate packages
+        run: |
+          cargo test --locked
+          cargo package --locked --allow-dirty
+
+  contract:
+    name: contract
+    # Every operation against a mock of the spec this crate was rendered from: the request the SDK builds
+    # passes the mock's validation, and the mock's answer, the spec's example, decodes into the SDK's types.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Mock the API from the spec
+        run: |
+          npx -y @stoplight/prism-cli@5 mock spec/openapi.json -p 4010 > prism.log 2>&1 &
+          for i in $(seq 1 60); do curl -s -o /dev/null -H 'x-api-key: k' http://127.0.0.1:4010/v3/me && break; sleep 1; done
+          curl -fsS -o /dev/null -H 'x-api-key: k' http://127.0.0.1:4010/v3/me
+      - name: Every operation against the mock
+        env:
+          SENT_BASE_URL: http://127.0.0.1:4010
+        run: cargo test --locked --test contract
+      - name: What the mock found wrong with the spec's own examples
+        if: always()
+        # Not a failure of this crate: an example response the spec carries that breaks the spec's own schema.
+        run: |
+          count="$(grep -c 'Violation' prism.log || true)"
+          echo "response examples violating the spec: ${count:-0}"
