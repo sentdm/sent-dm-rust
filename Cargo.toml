@@ -1,0 +1,27 @@
+[package]
+name = "sent"
+# release-please moves this line; the lane stamps the repository's current version at render time.
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.85"
+description = "The Sent REST API client: SMS, WhatsApp, RCS and voice from one API, with routing and compliance handled by Sent."
+license = "Apache-2.0"
+repository = "https://github.com/sentdm/sent-dm-rust"
+homepage = "https://docs.sent.dm"
+documentation = "https://docs.rs/sent"
+readme = "README.md"
+keywords = ["sent", "sms", "whatsapp", "rcs", "messaging"]
+categories = ["api-bindings", "web-programming::http-client"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[dependencies]
+percent-encoding = "2"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+thiserror = "2"
+tokio = { version = "1", features = ["time"] }
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
