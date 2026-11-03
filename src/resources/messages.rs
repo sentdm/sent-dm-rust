@@ -71,6 +71,38 @@ impl<'a> Messages<'a> {
             .await
     }
 
+    /// Resend a message
+    ///
+    /// Resends a message you already sent, on the same message id, without rebuilding the request. The typical use is recovering a BLOCKED message — for example one refused for insufficient balance — after the account has been topped up.
+    ///
+    /// **A resend bills again.** Each accepted resend is a new delivery attempt and records a new charge against the same message id; a client that resends on every failure is charged on every loop.
+    ///
+    /// **Every policy runs again.** The resend goes back through the full send pipeline — consent, balance, KYC and channel quota, template approval, quiet hours and channel health — so it can land on BLOCKED, FILTERED or SCHEDULED again rather than being sent, exactly as a fresh send would. Status webhooks (message.sent, message.blocked, message.filtered, message.failed) fire again for the same message id, so consumers keyed on the id will see repeated transitions.
+    ///
+    /// **What can be resent.** A message in a terminal state — DELIVERED, FAILED, READ or BLOCKED — or one stuck at SENT for more than 15 minutes. A FILTERED message can never be resent: the recipient opted out or a routing rule refused the send. A message still in flight (QUEUED, PROCESSED, ROUTED), held for quiet hours (SCHEDULED), or SENT less than 15 minutes ago returns 409. Two concurrent resends of one id are serialised: one is accepted, the other gets 409.
+    ///
+    /// The resend keeps the channel the message was originally requested on; the channel cannot be changed on a resend — send a new message instead. `Idempotency-Key` is honoured, so a retried request replays the first accepted response instead of resending twice.
+    ///
+    /// The response has the same shape as `POST /v3/messages`: `recipients` has a single entry whose `message_id` is the id you resent.
+    ///
+    /// `POST /v3/messages/{id}/resend`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn resend(
+        &self,
+        id: &str,
+        request: &ResendMessageV3Request,
+    ) -> Result<SendMessageResponse> {
+        self.client
+            .send(
+                Method::POST,
+                &format!("/v3/messages/{}/resend", crate::client::encode(id)),
+                &NoQuery {},
+                Some(request),
+            )
+            .await
+    }
+
     /// Cancel a scheduled message
     ///
     /// Calls off a message you scheduled with `scheduled_at`, before it is released for sending. The message moves to `CANCELLED`, which is terminal, and it is never sent.
@@ -101,38 +133,6 @@ impl<'a> Messages<'a> {
             .send(
                 Method::POST,
                 &format!("/v3/messages/{}/cancel", crate::client::encode(id)),
-                &NoQuery {},
-                Some(request),
-            )
-            .await
-    }
-
-    /// Resend a message
-    ///
-    /// Resends a message you already sent, on the same message id, without rebuilding the request. The typical use is recovering a BLOCKED message — for example one refused for insufficient balance — after the account has been topped up.
-    ///
-    /// **A resend bills again.** Each accepted resend is a new delivery attempt and records a new charge against the same message id; a client that resends on every failure is charged on every loop.
-    ///
-    /// **Every policy runs again.** The resend goes back through the full send pipeline — consent, balance, KYC and channel quota, template approval, quiet hours and channel health — so it can land on BLOCKED, FILTERED or SCHEDULED again rather than being sent, exactly as a fresh send would. Status webhooks (message.sent, message.blocked, message.filtered, message.failed) fire again for the same message id, so consumers keyed on the id will see repeated transitions.
-    ///
-    /// **What can be resent.** A message in a terminal state — DELIVERED, FAILED, READ or BLOCKED — or one stuck at SENT for more than 15 minutes. A FILTERED message can never be resent: the recipient opted out or a routing rule refused the send. A message still in flight (QUEUED, PROCESSED, ROUTED), held for quiet hours (SCHEDULED), or SENT less than 15 minutes ago returns 409. Two concurrent resends of one id are serialised: one is accepted, the other gets 409.
-    ///
-    /// The resend keeps the channel the message was originally requested on; the channel cannot be changed on a resend — send a new message instead. `Idempotency-Key` is honoured, so a retried request replays the first accepted response instead of resending twice.
-    ///
-    /// The response has the same shape as `POST /v3/messages`: `recipients` has a single entry whose `message_id` is the id you resent.
-    ///
-    /// `POST /v3/messages/{id}/resend`
-    /// # Errors
-    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn resend(
-        &self,
-        id: &str,
-        request: &ResendMessageV3Request,
-    ) -> Result<SendMessageResponse> {
-        self.client
-            .send(
-                Method::POST,
-                &format!("/v3/messages/{}/resend", crate::client::encode(id)),
                 &NoQuery {},
                 Some(request),
             )

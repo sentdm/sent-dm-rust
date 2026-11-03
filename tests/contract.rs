@@ -494,20 +494,6 @@ async fn messages_send() {
 }
 
 #[tokio::test]
-async fn messages_cancel() {
-    let Some(client) = client() else {
-        return;
-    };
-    let request: CancelMessageV3Request =
-        serde_json::from_str(r#"{"sandbox": false}"#).expect("the example decodes");
-    client
-        .messages()
-        .cancel("8ba7b830-9dad-11d1-80b4-00c04fd430c8", &request)
-        .await
-        .expect("messages.cancel against the mock");
-}
-
-#[tokio::test]
 async fn messages_resend() {
     let Some(client) = client() else {
         return;
@@ -519,6 +505,20 @@ async fn messages_resend() {
         .resend("8ba7b830-9dad-11d1-80b4-00c04fd430c8", &request)
         .await
         .expect("messages.resend against the mock");
+}
+
+#[tokio::test]
+async fn messages_cancel() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: CancelMessageV3Request =
+        serde_json::from_str(r#"{"sandbox": false}"#).expect("the example decodes");
+    client
+        .messages()
+        .cancel("8ba7b830-9dad-11d1-80b4-00c04fd430c8", &request)
+        .await
+        .expect("messages.cancel against the mock");
 }
 
 #[tokio::test]
