@@ -17699,7 +17699,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiResponseOfResendMessageV3Response"
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiResponseOfSendMessageResponse"
                 },
                 "example": {
                   "success": true,
@@ -34872,7 +34872,7 @@
           }
         ]
       },
-      "SentDmServicesEndpointsCustomerAPIv3SharedApiResponseOfResendMessageV3Response": {
+      "SentDmServicesEndpointsCustomerAPIv3SharedApiResponseOfSendMessageResponse": {
         "type": "object",
         "description": "Standard API response envelope for all v3 endpoints",
         "additionalProperties": false,
@@ -34887,7 +34887,7 @@
             "nullable": true,
             "allOf": [
               {
-                "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3MessagesResponsesResendMessageV3Response"
+                "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3MessagesResponsesSendMessageResponse"
               }
             ]
           },
@@ -34910,14 +34910,6 @@
             ]
           }
         }
-      },
-      "SentDmServicesEndpointsCustomerAPIv3MessagesResponsesResendMessageV3Response": {
-        "type": "object",
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3MessagesResponsesSendMessageResponse"
-          }
-        ]
       },
       "SentDmServicesEndpointsCustomerAPIv3MessagesResponsesSendMessageResponse": {
         "type": "object",
@@ -34979,45 +34971,6 @@
             "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedMutationRequestBase"
           }
         ]
-      },
-      "SentDmServicesEndpointsCustomerAPIv3SharedApiResponseOfSendMessageResponse": {
-        "type": "object",
-        "description": "Standard API response envelope for all v3 endpoints",
-        "additionalProperties": false,
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "description": "Indicates whether the request was successful"
-          },
-          "data": {
-            "type": "object",
-            "description": "The response data (null if error)",
-            "nullable": true,
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3MessagesResponsesSendMessageResponse"
-              }
-            ]
-          },
-          "error": {
-            "type": "object",
-            "description": "Error details (null if successful)",
-            "nullable": true,
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiError"
-              }
-            ]
-          },
-          "meta": {
-            "description": "Metadata about the request and response",
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiMeta"
-              }
-            ]
-          }
-        }
       },
       "SentDmServicesEndpointsCustomerAPIv3MessagesRequestsSendMessageV3Request": {
         "type": "object",

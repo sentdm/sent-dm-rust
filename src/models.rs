@@ -3927,9 +3927,6 @@ pub type RemoveUserRequest = MutationRequest;
 /// The same shape as `MutationRequest`.
 pub type ResendMessageV3Request = MutationRequest;
 
-/// The same shape as `SendMessageResponse`.
-pub type ResendMessageV3Response = SendMessageResponse;
-
 /// The `RotateSecretV3Response` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct RotateSecretV3Response {

@@ -128,7 +128,7 @@ impl<'a> Messages<'a> {
         &self,
         id: &str,
         request: &ResendMessageV3Request,
-    ) -> Result<ResendMessageV3Response> {
+    ) -> Result<SendMessageResponse> {
         self.client
             .send(
                 Method::POST,

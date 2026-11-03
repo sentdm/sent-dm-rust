@@ -268,7 +268,7 @@ fn example_messages_get_message() {
 
 #[test]
 fn example_messages_resend_message_v3() {
-    let response: ApiResponse<ResendMessageV3Response> = serde_json::from_str(r#"{"success": true, "data": {"status": "QUEUED", "template_id": "7ba7b820-9dad-11d1-80b4-00c04fd430c8", "template_name": "order_confirmation", "recipients": [{"message_id": "8ba7b830-9dad-11d1-80b4-00c04fd430c8", "to": "+14155551234", "channel": "sms", "body": "Hi John Doe, your order #12345 has been confirmed."}]}, "error": null, "meta": {"request_id": "req_7X9zKp2jDw", "timestamp": "2026-01-15T10:30:00+00:00", "version": "v3"}}"#).expect("the example decodes");
+    let response: ApiResponse<SendMessageResponse> = serde_json::from_str(r#"{"success": true, "data": {"status": "QUEUED", "template_id": "7ba7b820-9dad-11d1-80b4-00c04fd430c8", "template_name": "order_confirmation", "recipients": [{"message_id": "8ba7b830-9dad-11d1-80b4-00c04fd430c8", "to": "+14155551234", "channel": "sms", "body": "Hi John Doe, your order #12345 has been confirmed."}]}, "error": null, "meta": {"request_id": "req_7X9zKp2jDw", "timestamp": "2026-01-15T10:30:00+00:00", "version": "v3"}}"#).expect("the example decodes");
     assert!(response.success, "the example is a success");
     assert!(response.data.is_some(), "the example carries data");
 }
