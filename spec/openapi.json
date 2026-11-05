@@ -10673,7 +10673,7 @@
           "Templates"
         ],
         "summary": "Create a new template",
-        "description": "Creates a new message template with header, body, footer, and buttons. The template can be submitted for review immediately or saved as draft for later submission. There is no `name` field on create — the display name is derived from the template's content and can be changed afterwards with `PUT /v3/templates/{id}`.",
+        "description": "Creates a new message template with header, body, footer, and buttons. The template can be submitted for review immediately or saved as draft for later submission. `name` is optional: when omitted or blank, a name is generated from the template's content. It can be changed afterwards with `PUT /v3/templates/{id}`.",
         "operationId": "SentDmServicesEndpointsCustomerAPIv3TemplatesCreateTemplateEndpoint",
         "parameters": [
           {
@@ -18052,7 +18052,7 @@
           "Messages"
         ],
         "summary": "Send a message",
-        "description": "Sends a message to one or more recipients using a template. Supports multi-channel broadcast — when multiple channels are specified (e.g. [\"sms\", \"whatsapp\"]), a separate message is created for each (recipient, channel) pair. To choose which of your own numbers a send goes out from, use 'channels': {\"sms\": [{\"from\": [\"+12125550000\", \"+14155550000\"]}]}. Each channel holds a list of entries, each with 'from' and optionally 'country' and 'strategy'; 'country' and 'strategy' are stored but not acted on yet, so every entry's numbers apply to every recipient on that channel. Every number listed must be an active sender on your account. Like the other account-level preconditions below, that is checked per message rather than when the request is received: the request is still accepted with 202, and each affected message is reported as BLOCKED with error code BUSINESS_029 on GET /messages/{id} and the message.blocked webhook. Each channel's numbers restrict which numbers that channel may use; it does not choose channels — 'channel' does, and the two can be combined. With 'channel' left at auto-detect, a recipient best served by a channel you listed no numbers for still goes out on it. Where several of the listed numbers could serve a recipient, routing prefers the one whose area code matches theirs. Keys: sms, whatsapp, rcs, mms. Returns immediately with per-recipient message IDs for async tracking via webhooks or the GET /messages/{id} endpoint. Sends gated before any delivery attempt do not reject the request — an account-level precondition such as insufficient balance, a template not approved for sending, or free-form content with no open conversation with the contact. The send is accepted with 202 and the affected messages are reported as BLOCKED on GET /messages/{id} and the message.blocked webhook. To send later, set scheduled_at (ISO-8601 with an explicit UTC offset; a value without one is rejected) between 1 minute and 30 days ahead: the response is a ScheduledSendMessageResponse (the same fields plus scheduled_at; status is still QUEUED), each message then moves to SCHEDULED, is held and released at that time (within a few minutes), and a message.scheduled webhook fires once it is held. Balance and template approval are evaluated at release, not at acceptance. Quiet hours are not checked when the request is accepted: if the time falls inside a legally protected quiet-hours window for a recipient, that message is moved to the next allowed time at release and a second message.scheduled webhook reports the new scheduled_at. An account may hold at most 1,000,000 scheduled messages at once (429 LIMIT_001).",
+        "description": "Sends a message to one or more recipients using a template. Supports multi-channel broadcast — when multiple channels are specified (e.g. [\"sms\", \"whatsapp\"]), a separate message is created for each (recipient, channel) pair. To choose which of your own numbers a send goes out from, use 'channels': {\"sms\": [{\"from\": [\"+12125550000\", \"+14155550000\"]}]}. Each channel holds a list of entries, each with 'from' and optionally 'country' and 'strategy'; 'country' and 'strategy' are stored but not acted on yet, so every entry's numbers apply to every recipient on that channel. Every number listed must be an active sender on your account. Like the other account-level preconditions below, that is checked per message rather than when the request is received: the request is still accepted with 202, and each affected message is reported as BLOCKED with error code BUSINESS_029 on GET /messages/{id} and the message.blocked webhook. Each channel's numbers restrict which numbers that channel may use; it does not choose channels — 'channel' does, and the two can be combined. With 'channel' left at auto-detect, a recipient best served by a channel you listed no numbers for still goes out on it. Where several of the listed numbers could serve a recipient, routing prefers the one whose area code matches theirs. Keys: sms, whatsapp, rcs, mms. Returns immediately with per-recipient message IDs for async tracking via webhooks or the GET /messages/{id} endpoint. Sends gated before any delivery attempt do not reject the request — an account-level precondition such as insufficient balance, a template not approved for sending, or free-form content with no open conversation with the contact. The send is accepted with 202 and the affected messages are reported as BLOCKED on GET /messages/{id} and the message.blocked webhook. To send later, set scheduled_at (ISO-8601 with an explicit UTC offset; a value without one is rejected) between 1 minute and 30 days ahead: the response is a ScheduledSendMessageResponse (the same fields plus scheduled_at; status is still QUEUED), each message then moves to SCHEDULED, is held and released at that time (within a few minutes), and a message.scheduled webhook fires once it is held. Balance and template approval are evaluated at release, not at acceptance. Quiet hours are not checked when the request is accepted: if the time falls inside a legally protected quiet-hours window for a recipient, that message is moved to the next allowed time at release and a second message.scheduled webhook reports the new scheduled_at. An account may hold at most 1,000,000 scheduled messages at once: a message scheduled past that is reported as BLOCKED (LIMIT_001) instead of being held.",
         "operationId": "SentDmServicesEndpointsCustomerAPIv3MessagesSendMessageV3Endpoint",
         "parameters": [
           {
@@ -18360,7 +18360,7 @@
             }
           },
           "429": {
-            "description": "Rate limit exceeded, or too many outstanding scheduled messages",
+            "description": "Rate limit exceeded",
             "headers": {
               "X-Request-Id": {
                 "description": "Unique request identifier for support and debugging",
@@ -18397,10 +18397,10 @@
                   "success": false,
                   "data": null,
                   "error": {
-                    "code": "LIMIT_001",
-                    "message": "Too many outstanding scheduled messages",
+                    "code": "BUSINESS_002",
+                    "message": "Rate limit exceeded",
                     "details": null,
-                    "doc_url": "https://docs.sent.dm/reference/api/error-catalog"
+                    "doc_url": "https://docs.sent.dm/reference/api/rate-limits"
                   },
                   "meta": {
                     "request_id": "req_7X9zKp2jDw",
@@ -30773,6 +30773,7 @@
       "SentDmServicesEndpointsCustomerAPIv3TemplatesRequestsCreateTemplateRequest": {
         "type": "object",
         "example": {
+          "name": "Welcome Message",
           "category": "MARKETING",
           "language": "en_US",
           "definition": {
@@ -30821,6 +30822,12 @@
             "description": "Request to create a new template",
             "additionalProperties": false,
             "properties": {
+              "name": {
+                "type": "string",
+                "description": "Template display name (optional). When omitted or blank, a name is generated from the template's\ncontent. It can be changed afterwards with PUT /v3/templates/{id}.",
+                "nullable": true,
+                "example": "Welcome Message"
+              },
               "category": {
                 "type": "string",
                 "description": "Template category: MARKETING, UTILITY, AUTHENTICATION (optional, auto-detected if not provided)",
@@ -31533,6 +31540,8 @@
               "name": {
                 "type": "string",
                 "description": "Template display name",
+                "maxLength": 255,
+                "minLength": 0,
                 "nullable": true,
                 "example": "Updated Welcome Message"
               },
@@ -37844,7 +37853,7 @@
         "properties": {
           "updated_at": {
             "type": "string",
-            "description": "When the message reached MessageStatus, in UTC\n(yyyy-MM-ddTHH:mm:ssZ)."
+            "description": "When the message reached the status this event reports, in UTC\n(yyyy-MM-ddTHH:mm:ssZ)."
           },
           "account_id": {
             "type": "string",

@@ -1870,6 +1870,10 @@ pub struct CreateTemplateRequest {
     /// Useful for testing integrations without actual execution
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sandbox: Option<bool>,
+    /// Template display name (optional). When omitted or blank, a name is generated from the template's
+    /// content. It can be changed afterwards with PUT /v3/templates/{id}.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     /// Template category: MARKETING, UTILITY, AUTHENTICATION (optional, auto-detected if not provided)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
@@ -3320,7 +3324,7 @@ pub struct MessageResponse {
 /// message produces several of these as it moves toward a terminal status.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct MessageEventPayload {
-    /// When the message reached MessageStatus, in UTC
+    /// When the message reached the status this event reports, in UTC
     /// (yyyy-MM-ddTHH:mm:ssZ).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<String>,

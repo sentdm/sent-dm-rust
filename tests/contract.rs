@@ -232,7 +232,7 @@ async fn templates_create() {
     let Some(client) = client() else {
         return;
     };
-    let request: CreateTemplateRequest = serde_json::from_str(r#"{"sandbox": false, "category": "MARKETING", "language": "en_US", "definition": {"body": {}}, "auto_create_for_sp": false, "submit_for_review": false}"#).expect("the example decodes");
+    let request: CreateTemplateRequest = serde_json::from_str(r#"{"sandbox": false, "name": "Welcome Message", "category": "MARKETING", "language": "en_US", "definition": {"body": {}}, "auto_create_for_sp": false, "submit_for_review": false}"#).expect("the example decodes");
     client
         .templates()
         .create(&request)
