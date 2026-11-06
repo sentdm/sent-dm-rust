@@ -43,7 +43,7 @@ impl<'a> Templates<'a> {
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
     pub async fn list(&self, params: &TemplatesListParams) -> Result<Page<Template>> {
-        let data: TemplatesListResponse = self
+        let data: TemplatesList = self
             .client
             .send(Method::GET, "/v3/templates", params, None::<&()>)
             .await?;

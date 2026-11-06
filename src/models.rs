@@ -23,7 +23,7 @@ use serde_json::Value;
 /// Returns organization (with profiles), user (standalone), or profile (child of an organization)
 /// data depending on the API key type. Always includes messaging channel configuration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct AccountResponse {
+pub struct Account {
     /// Account type: "organization" (has profiles), "user" (no profiles), or "profile" (child of an organization)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<String>,
@@ -53,7 +53,7 @@ pub struct AccountResponse {
     pub created_at: Option<String>,
     /// Messaging channel configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub channels: Option<ChannelsResponse>,
+    pub channels: Option<AccountChannels>,
     /// The SMS sender this account sends from in the United States, in E.164 form. Null when the account has
     /// no US SMS sender.
     ///
@@ -93,7 +93,7 @@ pub struct AccountResponse {
     pub settings: Option<ProfileSettings>,
     /// List of profiles (populated for organization type, empty for user and profile types)
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub profiles: Option<Vec<ProfileResponse>>,
+    pub profiles: Option<Vec<AccountProfile>>,
 }
 
 /// The `AddCallParticipantRequest` object.
@@ -345,7 +345,7 @@ pub struct BillingContactInfo {
 
 /// Billing contact info returned in profile responses
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct BillingContactResponse {
+pub struct BillingContact {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -372,7 +372,7 @@ pub struct BillingContactResponse {
 /// campaign, where supplying data is the act of owning; it becomes ordinary the moment billing gains a
 /// contact or a payment method to carry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct BillingRequest {
+pub struct SenderProfileBillingRequest {
     /// Whether the parent organization pays. false is the profile paying for itself.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inherit: Option<bool>,
@@ -384,7 +384,7 @@ pub struct BillingRequest {
 /// BillingRequest. Same reason as the brand: a response is not
 /// a request, whatever it carries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct BillingResponse {
+pub struct SenderProfileBilling {
     /// Whether the organization pays, rather than the profile.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inherit: Option<bool>,
@@ -408,7 +408,7 @@ pub struct BrandBusinessInfo {
         default,
         skip_serializing_if = "Option::is_none"
     )]
-    pub entity_type: Option<EntitiesEntityType>,
+    pub entity_type: Option<EntityType>,
     /// Street address
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub street: Option<String>,
@@ -440,9 +440,9 @@ pub struct BrandBusinessInfo {
     pub country_of_registration: Option<String>,
 }
 
-/// The `BrandBusinessResponse` object.
+/// The `BrandBusiness` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct BrandBusinessResponse {
+pub struct BrandBusiness {
     /// Legal business name
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub legal_name: Option<String>,
@@ -499,7 +499,7 @@ pub struct BrandCampaign {
     #[serde(rename = "brandId", default, skip_serializing_if = "Option::is_none")]
     pub brand_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub status: Option<EnumsTcrCampaignStatus>,
+    pub status: Option<TcrCampaignStatus>,
     /// The Campaign Registry identifier, once the campaign has been accepted.
     #[serde(
         rename = "tcrCampaignId",
@@ -656,9 +656,9 @@ pub struct BrandComplianceInfo {
     pub notes: Option<String>,
 }
 
-/// The `BrandComplianceResponse` object.
+/// The `BrandCompliance` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct BrandComplianceResponse {
+pub struct BrandCompliance {
     /// Business vertical/industry category
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vertical: Option<TcrVertical>,
@@ -719,9 +719,9 @@ pub struct BrandContactInfo {
     pub phone_country_code: Option<String>,
 }
 
-/// The `BrandContactResponse` object.
+/// The `BrandContact` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct BrandContactResponse {
+pub struct BrandContact {
     /// Primary contact name
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -756,7 +756,7 @@ pub struct BrandsBrandData {
 
 /// Brand response with nested contact, business, and compliance sections — mirrors the request structure.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct BrandWithKycResponse {
+pub struct BrandWithKyc {
     /// Unique identifier for the brand
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
@@ -765,10 +765,10 @@ pub struct BrandWithKycResponse {
     pub tcr_brand_id: Option<String>,
     /// TCR brand status
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub status: Option<EnumsTcrBrandStatus>,
+    pub status: Option<TcrBrandStatus>,
     /// TCR brand identity verification status
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub identity_status: Option<EnumsTcrBrandIdentityStatus>,
+    pub identity_status: Option<TcrBrandIdentityStatus>,
     /// Universal EIN from TCR
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub universal_ein: Option<String>,
@@ -795,18 +795,18 @@ pub struct BrandWithKycResponse {
     pub updated_at: Option<String>,
     /// Contact information for the brand
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub contact: Option<BrandContactResponse>,
+    pub contact: Option<BrandContact>,
     /// Business details and address information
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub business: Option<BrandBusinessResponse>,
+    pub business: Option<BrandBusiness>,
     /// Compliance and TCR-related information
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub compliance: Option<BrandComplianceResponse>,
+    pub compliance: Option<BrandCompliance>,
 }
 
 /// One leg of a call the price covers
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct CallLegResponse {
+pub struct CallLeg {
     /// inbound for the caller's leg to your number, outbound for a leg placed on your behalf
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub direction: Option<String>,
@@ -941,7 +941,7 @@ pub struct Call {
     pub price: Option<f64>,
     /// The legs the price covers, one entry per billed leg, each with its own cost: a call your answer connected to a phone number ran the caller's leg to your number and the leg to the connected number at once, and both are billed. Null until the call has been priced
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub legs: Option<Vec<CallLegResponse>>,
+    pub legs: Option<Vec<CallLeg>>,
     /// True once a recording of the call is available
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recording_available: Option<bool>,
@@ -1170,9 +1170,9 @@ pub struct CampaignUseCase {
 /// The same shape as `MutationRequest`.
 pub type CancelMessageV3Request = MutationRequest;
 
-/// The `CancelMessageV3Response` object.
+/// The `CancelledMessage` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct CancelMessageV3Response {
+pub struct CancelledMessage {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1194,7 +1194,7 @@ pub struct CancelMessageV3Response {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub channel: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub message_body: Option<EntitiesMessageBody>,
+    pub message_body: Option<MessageBody>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1206,7 +1206,7 @@ pub struct CancelMessageV3Response {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_contact_price: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub events: Option<Vec<MessageEventV3>>,
+    pub events: Option<Vec<MessageStatusEvent>>,
     /// Why the message is at its current status, as a stable platform code such as
     /// DELIVERY_007, BUSINESS_003 or
     /// DELIVERY_003. Present when the current status is FAILED, FILTERED or
@@ -1226,9 +1226,9 @@ pub struct CancelMessageV3Response {
     pub scheduled_at: Option<String>,
 }
 
-/// The `ChannelScoreResponse` object.
+/// The `ChannelScore` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct ChannelScoreResponse {
+pub struct ChannelScore {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub channel: Option<String>,
     /// Percentage (0-100) of messages on this channel that reached a successful terminal state: SENT/DELIVERED/READ for outbound, RECEIVED for inbound.
@@ -1320,7 +1320,7 @@ pub struct ChannelEventPayload {
     /// events emitted after the market is deleted or cleared. Within the object, absent documents
     /// means they were not read, while an empty list means none were supplied.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub compliance: Option<SuppliedComplianceState>,
+    pub compliance: Option<SuppliedCompliance>,
     /// Why the market is not ACTIVE, as a stable code: an ErrorCodes CHANNEL_xxx value such
     /// as CHANNEL_001 (something you owe) or CHANNEL_002 (a correction was requested). The same code
     /// the channels resource reports for the market. Switch on this rather than on reason. Omitted while
@@ -1358,16 +1358,16 @@ pub type ChannelsMarketMarketRequest = EmptyRequest;
 /// Messaging channel configuration. All three channels are always present.
 /// Each channel has a "configured" flag; configured channels expose additional details.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct ChannelsResponse {
+pub struct AccountChannels {
     /// SMS channel
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sms: Option<SmsChannelResponse>,
+    pub sms: Option<AccountSmsChannel>,
     /// WhatsApp Business channel
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub whatsapp: Option<WhatsappChannelResponse>,
+    pub whatsapp: Option<AccountWhatsappChannel>,
     /// RCS channel
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub rcs: Option<RcsChannelResponse>,
+    pub rcs: Option<AccountRcsChannel>,
 }
 
 /// The `CompleteProfileRequest` object.
@@ -1400,7 +1400,7 @@ pub struct ComplianceAttachmentTemplate {
 
 /// One value a market expects in a channel call's compliance map.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct ComplianceRequirementResponse {
+pub struct ComplianceRequirement {
     /// Key to use in the compliance map.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub key: Option<String>,
@@ -1437,7 +1437,7 @@ pub struct ComplianceRequirementResponse {
     /// that the published body can be sent as it stands. So the shape is described here instead, and each
     /// entry the caller composes has these keys.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub item_fields: Option<Vec<ComplianceRequirementResponse>>,
+    pub item_fields: Option<Vec<ComplianceRequirement>>,
     /// Human label, suitable for a form field.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
@@ -1448,7 +1448,7 @@ pub struct ComplianceRequirementResponse {
 
 /// Everything a market expects of a sender, for one channel, country and sender type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct ComplianceRequirementsResponse {
+pub struct ComplianceRequirements {
     /// Channel the requirements apply to — sms, whatsapp or rcs.
     ///
     /// Echoed so the document says which channel it describes. It always described one: setup's
@@ -1478,7 +1478,7 @@ pub struct ComplianceRequirementsResponse {
     /// Values to supply in compliance. Empty when the market demands nothing. Values Sent
     /// supplies on your behalf are never listed, and neither are ones it derives from what you send.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub requirements: Option<Vec<ComplianceRequirementResponse>>,
+    pub requirements: Option<Vec<ComplianceRequirement>>,
     /// The calls that set this market up, in the order they have to be made, each carrying a body that can be
     /// sent as it stands.
     ///
@@ -1538,7 +1538,7 @@ pub struct ContactMessageSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub channels_used: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub channel_scores: Option<Vec<ChannelScoreResponse>>,
+    pub channel_scores: Option<Vec<ChannelScore>>,
 }
 
 /// Contact response for v3 API
@@ -1707,7 +1707,7 @@ pub struct ContactEventPayload {
 
 /// A paginated list of contacts.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct ContactsListResponse {
+pub struct ContactsList {
     /// The contacts on this page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contacts: Option<Vec<ContactResponse>>,
@@ -1722,7 +1722,7 @@ pub struct ContactsListResponse {
 pub struct ConversationMessagesList {
     /// The messages on this page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub messages: Option<Vec<MessageResponse>>,
+    pub messages: Option<Vec<Message>>,
     /// Pagination metadata. Present even when the endpoint does not page, describing the single page it
     /// returned, so a caller can loop over any v3 list without knowing which ones paginate.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1849,7 +1849,7 @@ pub struct CreateSenderProfileRequest {
     /// profile's balance cannot. Reads report that default as { "inherit": false }; GET /v3/account
     /// reports it in settings.billing_model.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub billing: Option<BillingRequest>,
+    pub billing: Option<SenderProfileBillingRequest>,
     /// Who is notified about this profile's events: ORGANIZATION, SENDER_PROFILE, or
     /// ORGANIZATION_AND_SENDER_PROFILE. Omitting it leaves the profile on the Organization default.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1980,7 +1980,7 @@ pub struct CreateWebhookV3Request {
     /// (webhook_version: 1): a version 2 webhook ignores it and reaches sender profiles through
     /// is_inheritable. A version 1 webhook's responses return the selection.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sender_profile: Option<WebhookSenderProfileV3Config>,
+    pub sender_profile: Option<WebhookSenderProfileConfig>,
     /// Delivery retries. Applies to version 1 only: Svix retries a version 2 webhook on its own schedule.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retry_count: Option<i32>,
@@ -2057,9 +2057,9 @@ pub struct DestinationCountry {
     pub is_main: Option<bool>,
 }
 
-/// The values of `EntitiesEntityType`.
+/// The values of `EntityType`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub enum EntitiesEntityType {
+pub enum EntityType {
     #[default]
     #[serde(rename = "PRIVATE_PROFIT")]
     PrivateProfit,
@@ -2086,7 +2086,7 @@ pub enum EntitiesEntityType {
 /// four IMessageBodyStrategy implementations and MessageUtils.BuildSegmentBody — has to
 /// carry every member, or that member is silently dropped on whichever path forgot it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct EntitiesMessageBody {
+pub struct MessageBody {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub header: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2094,7 +2094,7 @@ pub struct EntitiesMessageBody {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub footer: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub buttons: Option<Vec<EntitiesMessageButton>>,
+    pub buttons: Option<Vec<MessageButton>>,
     /// MMS subject line. Null on every other channel.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
@@ -2106,7 +2106,7 @@ pub struct EntitiesMessageBody {
     /// templateVariables and nothing else — so media that lives only on the original request
     /// would silently turn a replayed MMS into a text message.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub media: Option<Vec<EntitiesMessageMedia>>,
+    pub media: Option<Vec<MessageMedia>>,
     /// The asset delivered on a media header, when the template has one.
     ///
     /// Deliberately a separate field rather than part of Header: that is rendered
@@ -2118,12 +2118,12 @@ pub struct EntitiesMessageBody {
         default,
         skip_serializing_if = "Option::is_none"
     )]
-    pub header_media: Option<EntitiesMessageHeaderMedia>,
+    pub header_media: Option<MessageHeaderMedia>,
 }
 
-/// The `EntitiesMessageButton` object.
+/// The `MessageButton` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct EntitiesMessageButton {
+pub struct MessageButton {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2140,7 +2140,7 @@ pub struct EntitiesMessageButton {
 
 /// The media asset that rode a message's header, recorded as sent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct EntitiesMessageHeaderMedia {
+pub struct MessageHeaderMedia {
     /// "image", "video" or "document" — taken from the header's media variable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<String>,
@@ -2165,7 +2165,7 @@ pub struct EntitiesMessageHeaderMedia {
 /// M260826130000 and M260826140000 exist because RCS assets were stored as signed URLs
 /// and went stale. Nothing here is signed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct EntitiesMessageMedia {
+pub struct MessageMedia {
     /// Where the file lives. Outbound: the URL the customer gave us and the carrier fetched. Inbound:
     /// the URL the carrier hosts it at, relayed unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2230,7 +2230,7 @@ pub struct TemplateBody {
     /// MMS-specific copy, a subject or attachments. When present it replaces that body on MMS rather than
     /// adding to it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mms: Option<EntitiesTemplateMmsBodyContent>,
+    pub mms: Option<TemplateMmsBodyContent>,
 }
 
 /// The `TemplateBodyContent` object.
@@ -2429,14 +2429,14 @@ pub struct TemplateHeader {
     /// LocationVariableNames variables and cleared, for the same reason
     /// as ExampleUrl.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub location: Option<EntitiesTemplateHeaderLocation>,
+    pub location: Option<TemplateHeaderLocation>,
 }
 
 /// The map pin a location header drops. Meta wants none of this at creation — the component is just
 /// {"type":"header","format":"location"} — so these values exist for Sent: a preview, and the
 /// default a StaticResource header falls back to at send.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct EntitiesTemplateHeaderLocation {
+pub struct TemplateHeaderLocation {
     pub latitude: String,
     pub longitude: String,
     pub name: String,
@@ -2445,7 +2445,7 @@ pub struct EntitiesTemplateHeaderLocation {
 
 /// One attachment on an MMS template body.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct EntitiesTemplateMediaItem {
+pub struct TemplateMediaItem {
     /// Publicly fetchable https URL. The carrier's MMSC fetches this at send time, so it has to
     ///             stay reachable and unauthenticated for the life of the send — including retries and a DLQ
     ///             replay — which is why a presigned URL is not a valid value here.
@@ -2458,9 +2458,9 @@ pub struct EntitiesTemplateMediaItem {
     pub media_type: Option<String>,
 }
 
-/// The `EntitiesTemplateMmsBodyContent` object.
+/// The `TemplateMmsBodyContent` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct EntitiesTemplateMmsBodyContent {
+pub struct TemplateMmsBodyContent {
     /// The type of body content. Defaults to "text" when omitted, which also fills it in when reading
     /// stored bodies saved without it; the template editor refuses to load a body with no type.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2500,7 +2500,7 @@ pub struct EntitiesTemplateMmsBodyContent {
     /// request replaces this list rather than adding to it, so a template can hold a default creative and
     /// a caller can still send something recipient-specific.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub media: Option<Vec<EntitiesTemplateMediaItem>>,
+    pub media: Option<Vec<TemplateMediaItem>>,
 }
 
 /// The `TemplateVariable` object.
@@ -2520,12 +2520,12 @@ pub struct TemplateVariable {
     /// One of variable, link or media. Decides which Props fields
     /// are required.
     pub r#type: String,
-    pub props: EntitiesTemplateVariableProps,
+    pub props: TemplateVariableProps,
 }
 
-/// The `EntitiesTemplateVariableProps` object.
+/// The `TemplateVariableProps` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct EntitiesTemplateVariableProps {
+pub struct TemplateVariableProps {
     #[serde(rename = "variableType")]
     pub variable_type: String,
     /// Example value substituted into the template when previewing it and when submitting it to
@@ -2579,9 +2579,9 @@ pub enum MessagingUseCaseUs {
     Other(String),
 }
 
-/// The values of `EnumsTcrBrandIdentityStatus`.
+/// The values of `TcrBrandIdentityStatus`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub enum EnumsTcrBrandIdentityStatus {
+pub enum TcrBrandIdentityStatus {
     #[default]
     #[serde(rename = "SELF_DECLARED")]
     SelfDeclared,
@@ -2615,9 +2615,9 @@ pub enum TcrBrandRelationship {
     Other(String),
 }
 
-/// The values of `EnumsTcrBrandStatus`.
+/// The values of `TcrBrandStatus`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub enum EnumsTcrBrandStatus {
+pub enum TcrBrandStatus {
     #[default]
     #[serde(rename = "ACTIVE")]
     Active,
@@ -2630,9 +2630,9 @@ pub enum EnumsTcrBrandStatus {
     Other(String),
 }
 
-/// The values of `EnumsTcrCampaignStatus`.
+/// The values of `TcrCampaignStatus`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub enum EnumsTcrCampaignStatus {
+pub enum TcrCampaignStatus {
     #[default]
     #[serde(rename = "SENT_CREATED")]
     SentCreated,
@@ -2780,7 +2780,7 @@ pub type HangupCallRequest = MutationRequest;
 
 /// One attachment on an inbound message.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct InboundMediaWebhookPayload {
+pub struct InboundMedia {
     /// Where the carrier hosts the attachment.
     ///
     /// This link expires and is not authenticated. sent.dm relays it rather than copying
@@ -2837,7 +2837,7 @@ pub struct InboundMessageEventPayload {
     /// link, not a fresh one, so once it lapses the entry remains with whatever the carrier declared
     /// about the file but the file is no longer reachable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub media: Option<Vec<InboundMediaWebhookPayload>>,
+    pub media: Option<Vec<InboundMedia>>,
     /// The ad the contact tapped to start the conversation, present only on whatsapp
     /// messages sent from a Click to WhatsApp ad and omitted entirely otherwise.
     ///
@@ -2891,7 +2891,7 @@ pub struct InviteUserRequest {
 /// buckets derived at the edge and are absent whenever the request did not supply enough to derive
 /// them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct LinkWebhookPayload {
+pub struct LinkEventPayload {
     /// The organization the link belongs to. Always the parent account, never a sender profile —
     /// read SenderProfileId for that.
     ///
@@ -3153,13 +3153,13 @@ pub enum MarketComplianceCampaignUseCasesItemUseCase {
 
 /// Response for GET /messages/{id}/activities
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct MessageActivitiesResponse {
+pub struct MessageActivities {
     /// The message ID these activities belong to
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message_id: Option<String>,
     /// List of activity events ordered by most recent first
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub activities: Option<Vec<MessageActivityResponse>>,
+    pub activities: Option<Vec<MessageActivity>>,
     /// Pagination metadata. Present even though this endpoint does not page, describing the single page it
     /// returned, so a caller can loop over any v3 list without knowing which ones paginate.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3171,7 +3171,7 @@ pub struct MessageActivitiesResponse {
 /// The activity list mixes statuses, so unlike a message it is one shape rather than two: a SCHEDULED
 /// entry carries scheduled_at, and every other entry has no such key.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct MessageActivityResponse {
+pub struct MessageActivity {
     /// Activity status. Outbound: QUEUED, PROCESSED, ROUTED, SCHEDULED, SENT, DELIVERED, READ, FAILED.
     /// Inbound (from contact): RECEIVED (terminal).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3213,7 +3213,7 @@ pub struct MessageActivityResponse {
 /// One entry of a channel's list in Channels, e.g.
 /// {"country": "US", "from": ["+15559990002", "+15559990003"], "strategy": "sticky"}.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct MessageChannelOptionsRequest {
+pub struct MessageChannelOptions {
     /// Recipient country this entry is meant for (ISO 3166-1 alpha-2, e.g. US). Optional. Accepted
     /// and stored, not acted on yet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3232,7 +3232,7 @@ pub struct MessageChannelOptionsRequest {
 
 /// Represents a status change event in a message's lifecycle (v3)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct MessageEventV3 {
+pub struct MessageStatusEvent {
     pub status: String,
     pub timestamp: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3249,7 +3249,7 @@ pub struct MessageEventV3 {
 
 /// What one recipient of a send got, as the API reports it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct MessageRecipientResponse {
+pub struct MessageRecipient {
     /// Identifier for tracking this recipient's message.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message_id: Option<String>,
@@ -3271,7 +3271,7 @@ pub struct MessageRecipientResponse {
 /// the two to answer with. From
 /// always returns this type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct MessageResponse {
+pub struct Message {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3293,7 +3293,7 @@ pub struct MessageResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub channel: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub message_body: Option<EntitiesMessageBody>,
+    pub message_body: Option<MessageBody>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3305,7 +3305,7 @@ pub struct MessageResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_contact_price: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub events: Option<Vec<MessageEventV3>>,
+    pub events: Option<Vec<MessageStatusEvent>>,
     /// Why the message is at its current status, as a stable platform code such as
     /// DELIVERY_007, BUSINESS_003 or
     /// DELIVERY_003. Present when the current status is FAILED, FILTERED or
@@ -3395,7 +3395,7 @@ pub struct MessageEventPayload {
 /// separately — so a compliance block here would always be null and would invite the question of
 /// what an MMS market owes. It owes what the SMS market owes, reported there.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct MmsMarketState {
+pub struct MmsMarket {
     /// ISO-3166 alpha-2 of the market.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
@@ -3410,9 +3410,9 @@ pub struct MmsMarketState {
     pub status: Option<String>,
 }
 
-/// The `NumberLookupResultResponse` object.
+/// The `NumberLookupResult` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct NumberLookupResultResponse {
+pub struct NumberLookupResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub phone_number: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3567,7 +3567,7 @@ pub type ProfileBaseRequest = EmptyRequest;
 /// Response acknowledging that profile completion has been accepted and started in the background.
 /// The provided webhook URL will be called when processing finishes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct ProfileCompletionAcceptedResponse {
+pub struct ProfileCompletionAccepted {
     /// Human-readable message describing the accepted state.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
@@ -3575,7 +3575,7 @@ pub struct ProfileCompletionAcceptedResponse {
 
 /// Response when a profile is already in the completed state and no further action is taken.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct ProfileCompletionResultResponse {
+pub struct ProfileCompletionResult {
     /// Current process status of the profile (e.g., "completed", "submitted", "in_progress").
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
@@ -3681,16 +3681,16 @@ pub struct ProfileDetail {
     pub waba_id: Option<String>,
     /// Billing contact for this profile. Present when billing_model is "profile" or "profile_and_organization".
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub billing_contact: Option<BillingContactResponse>,
+    pub billing_contact: Option<BillingContact>,
     /// Brand associated with this profile. Null if no brand has been configured yet.
     /// Includes KYC information and TCR registration status.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub brand: Option<BrandWithKycResponse>,
+    pub brand: Option<BrandWithKyc>,
 }
 
 /// Profile (sender profile) response for v3 API
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct ProfileResponse {
+pub struct AccountProfile {
     /// Profile unique identifier
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
@@ -3758,7 +3758,7 @@ pub struct ProfileSettings {
 
 /// The profiles in the organization.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct ProfilesListResponse {
+pub struct ProfilesList {
     /// The profiles on this page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profiles: Option<Vec<ProfileDetail>>,
@@ -3795,7 +3795,7 @@ pub struct RcsAddress {
 /// can answer: the record's id, its status, and the number it sends from. So a read after a
 /// write shows the form as stored rather than as echoed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct RcsAgentState {
+pub struct RcsAgent {
     /// The agent record. Stable across the whole approval, and what support will ask for.
     ///
     /// Nullable and omitted when absent: a sender profile with RCS intent records the channel but has no
@@ -3898,7 +3898,7 @@ pub enum RcsAgentStateStatus {
 
 /// RCS channel configuration. When configured, includes the RCS phone number.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct RcsChannelResponse {
+pub struct AccountRcsChannel {
     /// Whether RCS is configured for this account
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub configured: Option<bool>,
@@ -3931,9 +3931,9 @@ pub type RemoveUserRequest = MutationRequest;
 /// The same shape as `MutationRequest`.
 pub type ResendMessageV3Request = MutationRequest;
 
-/// The `RotateSecretV3Response` object.
+/// The `WebhookSecret` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct RotateSecretV3Response {
+pub struct WebhookSecret {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signing_secret: Option<String>,
 }
@@ -3959,7 +3959,7 @@ pub type RotateWebhookSecretV3Request = MutationRequest;
 /// scheduled_at is a ScheduledSendMessageResponse, and the endpoint decides which of the two to
 /// answer with. From always returns this type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct SendMessageResponse {
+pub struct MessageSendResult {
     /// QUEUED: the batch is accepted. A request that carried scheduled_at is QUEUED
     ///             here too; each message moves to SCHEDULED once it is held, as GET /v3/messages/{id} and the
     ///             message.scheduled webhook report.
@@ -3970,7 +3970,7 @@ pub struct SendMessageResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub template_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub recipients: Option<Vec<MessageRecipientResponse>>,
+    pub recipients: Option<Vec<MessageRecipient>>,
 }
 
 /// The `SendMessageV3Request` object.
@@ -4012,11 +4012,11 @@ pub struct SendMessageV3Request {
     /// each affected message is recorded BLOCKED with error code BUSINESS_029 and reported on
     /// GET /v3/messages and the status webhook.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub channels: Option<HashMap<String, Vec<MessageChannelOptionsRequest>>>,
+    pub channels: Option<HashMap<String, Vec<MessageChannelOptions>>>,
     /// Template reference (by id or name, with optional parameters).
     /// Optional — provide either Template or Message.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub template: Option<TemplateV3Ref>,
+    pub template: Option<TemplateRef>,
     /// Plain-text (free-form) message body. Provide either Template or this.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
@@ -4075,7 +4075,7 @@ pub struct SenderProfileChannels {
 /// The channels a profile sends on. SMS is a list because a profile can send in several markets; WhatsApp
 /// and RCS are single, because a profile has one business account and one agent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct SenderProfileChannelsState {
+pub struct ChannelsState {
     /// Which customer these channels belong to — the key's own, or the profile named in x-profile-id.
     ///
     /// Same reason the brand carries one: as the response to /v3/channels there is no other id in
@@ -4084,11 +4084,11 @@ pub struct SenderProfileChannelsState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sms: Option<Vec<SmsMarketState>>,
+    pub sms: Option<Vec<SmsMarket>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub whatsapp: Option<WhatsappChannelState>,
+    pub whatsapp: Option<WhatsappChannel>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub rcs: Option<RcsAgentState>,
+    pub rcs: Option<RcsAgent>,
     /// The markets this profile can send MMS in, one entry per country, or empty when none.
     ///
     /// Appears alongside sms rather than replacing an entry in it: the two are separate senders
@@ -4096,7 +4096,7 @@ pub struct SenderProfileChannelsState {
     /// still provisioning, or MMS-incapable entirely because the market's sender-type SKU does not carry
     /// it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mms: Option<Vec<MmsMarketState>>,
+    pub mms: Option<Vec<MmsMarket>>,
     /// The numbers this profile carries phone calls on, one entry per number, or empty when none. Voice is
     /// per number like an SMS market is per country: each number is its own channel row, turned on and off
     /// on its own, and one of them is the line app-originated calls fall back to.
@@ -4177,7 +4177,7 @@ pub struct SenderProfileRcs {
 /// a channel — so status lives there, where it says which specific thing is blocked rather than flattening
 /// several answers into one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct SenderProfileResponse {
+pub struct SenderProfile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -4204,20 +4204,20 @@ pub struct SenderProfileResponse {
     /// organization, { "inherit": false } for the profile, and fallback for the profile drawing on
     /// both.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub billing: Option<BillingResponse>,
+    pub billing: Option<SenderProfileBilling>,
     /// Who is notified about this profile's events: ORGANIZATION, SENDER_PROFILE, or
     /// ORGANIZATION_AND_SENDER_PROFILE. Always present — a profile that never chose reports as
     /// ORGANIZATION, the value a create would send to get the default behaviour.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notifications: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub channels: Option<SenderProfileChannelsState>,
+    pub channels: Option<ChannelsState>,
     /// Brand, campaign, and compliance documents lifted from all SMS markets to the profile root, so a
     /// caller finds everything in one place rather than walking channels.sms[n].compliance.
     /// Per-market compliance is always null in profile responses after the lift.
     /// Absent on a list read (documents are not fetched per market for a list).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub compliance: Option<SuppliedComplianceState>,
+    pub compliance: Option<SuppliedCompliance>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
 }
@@ -4324,10 +4324,10 @@ pub struct SenderProfileWhatsapp {
 
 /// A paginated list of sender profiles.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct SenderProfilesListResponse {
+pub struct SenderProfilesList {
     /// The sender_profiles on this page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sender_profiles: Option<Vec<SenderProfileResponse>>,
+    pub sender_profiles: Option<Vec<SenderProfile>>,
     /// Pagination metadata. Present even when the endpoint does not page, describing the single page it
     /// returned, so a caller can loop over any v3 list without knowing which ones paginate.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -4396,7 +4396,7 @@ pub struct MutationRequest {
 
 /// Cursor-based pagination. Never populated — see Cursors.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct SharedPaginationCursors {
+pub struct PaginationCursors {
     /// Cursor to fetch the next page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub after: Option<String>,
@@ -4432,12 +4432,12 @@ pub struct PaginationMeta {
     /// date somebody chooses.
     /// Deprecated.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cursors: Option<SharedPaginationCursors>,
+    pub cursors: Option<PaginationCursors>,
 }
 
 /// SMS channel configuration. When configured, includes the sending phone number.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct SmsChannelResponse {
+pub struct AccountSmsChannel {
     /// Whether SMS is configured for this account
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub configured: Option<bool>,
@@ -4452,7 +4452,7 @@ pub struct SmsChannelResponse {
 /// a profile can be live in one country and mid-registration in another — and each carries what it still owes,
 /// rather than that being reported in a separate array a caller has to join on.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct SmsMarketState {
+pub struct SmsMarket {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -4467,7 +4467,7 @@ pub struct SmsMarketState {
     /// market holding one number. US 10DLC numbers are assigned when the campaign is approved, so they read as
     /// owed until then. Read-only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub numbers: Option<Vec<SmsNumberState>>,
+    pub numbers: Option<Vec<SmsNumber>>,
     /// Where this market's sender stands, in terms of who is holding it up — PROVISIONING,
     /// ACTION_NEEDED, PENDING_REVIEW or ACTIVE. Read-only.
     ///
@@ -4496,7 +4496,7 @@ pub struct SmsMarketState {
     /// included, documents absent); fully populated on a single-profile read. Null only when the market
     /// registers with nobody and no compliance data was computed — nothing to show.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub compliance: Option<SuppliedComplianceState>,
+    pub compliance: Option<SuppliedCompliance>,
 }
 
 /// Where this market's sender stands, in terms of who is holding it up — PROVISIONING,
@@ -4544,7 +4544,7 @@ pub struct SmsNumberRequest {
 
 /// One number of an SMS market.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct SmsNumberState {
+pub struct SmsNumber {
     /// The number, or null while it is still to be assigned.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sender_value: Option<String>,
@@ -4572,7 +4572,7 @@ pub struct SmsNumberState {
 /// absent says they were not fetched; empty says the market has been given none. The parent object is null
 /// only when the market registers with nobody and compliance was not computed — nothing to show at all.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct SuppliedComplianceState {
+pub struct SuppliedCompliance {
     /// The identity this market registers under, with inherit saying whose it is.
     ///
     /// Reported here rather than on the profile because it belongs to the registration this market
@@ -4696,7 +4696,7 @@ pub struct Template {
 
 /// SDK-style template reference: resolve by ID or by name, with optional parameters.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct TemplateV3Ref {
+pub struct TemplateRef {
     /// Template ID (mutually exclusive with name)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
@@ -4780,7 +4780,7 @@ pub struct TemplateEventPayload {
 
 /// A paginated list of templates.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct TemplatesListResponse {
+pub struct TemplatesList {
     /// The templates on this page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub templates: Option<Vec<Template>>,
@@ -4803,9 +4803,9 @@ pub struct TestWebhookV3Request {
     pub event_type: String,
 }
 
-/// The `TestWebhookV3Response` object.
+/// The `WebhookTest` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct TestWebhookV3Response {
+pub struct WebhookTest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub success: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -5005,7 +5005,7 @@ pub struct UpdateWebhookV3Request {
     /// event must remain across both selections after the update. An empty result returns a V3 validation error.
     /// The response returns the selection as saved. A version 2 webhook ignores it: set is_inheritable instead.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sender_profile: Option<WebhookSenderProfileV3Config>,
+    pub sender_profile: Option<WebhookSenderProfileConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retry_count: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -5057,7 +5057,7 @@ pub struct UserResponse {
 
 /// The users in the organization.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct UsersListResponse {
+pub struct UsersList {
     /// The users on this page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub users: Option<Vec<UserResponse>>,
@@ -5529,7 +5529,7 @@ pub struct InboundMessageEvent {
 /// The envelope Sent POSTs to a subscribed webhook endpoint. Every event shares this shape and
 /// varies only in Payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct WebhookEventOfLinkWebhookPayload {
+pub struct LinkEvent {
     /// The event family, for example message, templates or contact. Route on
     /// this first, then on event for the specific change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -5548,7 +5548,7 @@ pub struct WebhookEventOfLinkWebhookPayload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub payload: Option<LinkWebhookPayload>,
+    pub payload: Option<LinkEventPayload>,
 }
 
 /// The envelope Sent POSTs to a subscribed webhook endpoint. Every event shares this shape and
@@ -5620,7 +5620,7 @@ pub struct WebhookEventType {
 
 /// The webhook event types a customer can subscribe to.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct WebhookEventTypesListV3Response {
+pub struct WebhookEventTypesList {
     /// The event_types on this page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub event_types: Option<Vec<WebhookEventType>>,
@@ -5630,9 +5630,9 @@ pub struct WebhookEventTypesListV3Response {
     pub pagination: Option<PaginationMeta>,
 }
 
-/// The `WebhookEventV3Response` object.
+/// The `WebhookDelivery` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct WebhookEventV3Response {
+pub struct WebhookDelivery {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -5701,7 +5701,7 @@ pub enum WebhookEventV3ResponseEventData {
     TemplateEvent(TemplateEvent),
     ChannelEvent(ChannelEvent),
     ContactEvent(ContactEvent),
-    WebhookEventOfLinkWebhookPayload(WebhookEventOfLinkWebhookPayload),
+    LinkEvent(LinkEvent),
     CallEvent(CallEvent),
     /// A shape this version does not list.
     Other(Value),
@@ -5715,10 +5715,10 @@ impl Default for WebhookEventV3ResponseEventData {
 
 /// A paginated list of webhook delivery records.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct WebhookEventsListV3Response {
+pub struct WebhookEventsList {
     /// The events on this page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub events: Option<Vec<WebhookEventV3Response>>,
+    pub events: Option<Vec<WebhookDelivery>>,
     /// Pagination metadata. Present even when the endpoint does not page, describing the single page it
     /// returned, so a caller can loop over any v3 list without knowing which ones paginate.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -5728,7 +5728,7 @@ pub struct WebhookEventsListV3Response {
 /// Request-only: the events an organization webhook's sender profile clones receive, one clone per existing
 /// and future profile. A version 1 webhook's responses report it as WebhookSenderProfileV3Response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct WebhookSenderProfileV3Config {
+pub struct WebhookSenderProfileConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub event_types: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -5740,7 +5740,7 @@ pub struct WebhookSenderProfileV3Config {
 /// Its own type, field for field the same as the request's sender_profile. A response is not
 /// a request, whatever it carries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct WebhookSenderProfileV3Response {
+pub struct WebhookSenderProfile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub event_types: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -5773,7 +5773,7 @@ pub struct WebhookResponse {
     /// is not cloned onto sender profiles, and absent on a version 2 webhook, which reaches sender profiles through
     /// is_inheritable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sender_profile: Option<WebhookSenderProfileV3Response>,
+    pub sender_profile: Option<WebhookSenderProfile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retry_count: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -5804,7 +5804,7 @@ pub struct WebhookResponse {
 
 /// A paginated list of webhooks.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct WebhooksListV3Response {
+pub struct WebhooksList {
     /// The webhooks on this page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub webhooks: Option<Vec<WebhookResponse>>,
@@ -5836,7 +5836,7 @@ pub struct WhatsappBusinessAccountCredentials {
 /// WhatsApp Business channel configuration. When configured, includes the WhatsApp phone number
 /// and business name.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct WhatsappChannelResponse {
+pub struct AccountWhatsappChannel {
     /// Whether WhatsApp is configured for this account
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub configured: Option<bool>,
@@ -5850,7 +5850,7 @@ pub struct WhatsappChannelResponse {
 
 /// The profile's WhatsApp account. Its status is Meta's verification state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct WhatsappChannelState {
+pub struct WhatsappChannel {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waba_id: Option<String>,
     /// The Meta phone-number id the profile sends from, or null when the account is connected but no number

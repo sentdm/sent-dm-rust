@@ -87,7 +87,7 @@ impl<'a> Users<'a> {
     /// `GET /v3/users`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn list(&self) -> Result<UsersListResponse> {
+    pub async fn list(&self) -> Result<UsersList> {
         self.client
             .send(Method::GET, "/v3/users", &NoQuery {}, None::<&()>)
             .await

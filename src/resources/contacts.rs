@@ -43,7 +43,7 @@ impl<'a> Contacts<'a> {
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
     pub async fn list(&self, params: &ContactsListParams) -> Result<Page<ContactResponse>> {
-        let data: ContactsListResponse = self
+        let data: ContactsList = self
             .client
             .send(Method::GET, "/v3/contacts", params, None::<&()>)
             .await?;

@@ -442,6 +442,78 @@ async fn profiles_campaigns_update() {
 }
 
 #[tokio::test]
+async fn sender_profiles_create() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: CreateSenderProfileRequest = serde_json::from_str(
+        r#"{"sandbox": false, "name": "Example Retail", "short_name": "Example", "channels": {}}"#,
+    )
+    .expect("the example decodes");
+    client
+        .sender_profiles()
+        .create(&request)
+        .await
+        .expect("sender_profiles.create against the mock");
+}
+
+#[tokio::test]
+async fn sender_profiles_list() {
+    let Some(client) = client() else {
+        return;
+    };
+    let params = sent::resources::sender_profiles::SenderProfilesListParams {
+        page: Some(1),
+        page_size: Some(2),
+    };
+    client
+        .sender_profiles()
+        .list(&params)
+        .await
+        .expect("sender_profiles.list against the mock");
+}
+
+#[tokio::test]
+async fn sender_profiles_retrieve() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .sender_profiles()
+        .retrieve("770e8400-e29b-41d4-a716-446655440002")
+        .await
+        .expect("sender_profiles.retrieve against the mock");
+}
+
+#[tokio::test]
+async fn sender_profiles_update() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: PatchSenderProfileRequest = serde_json::from_str(
+        r#"{"sandbox": false, "name": "Example Retail Renamed", "short_name": "EXMPL"}"#,
+    )
+    .expect("the example decodes");
+    client
+        .sender_profiles()
+        .update("770e8400-e29b-41d4-a716-446655440002", &request)
+        .await
+        .expect("sender_profiles.update against the mock");
+}
+
+#[tokio::test]
+async fn sender_profiles_delete() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .sender_profiles()
+        .delete("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .await
+        .expect("sender_profiles.delete against the mock");
+}
+
+#[tokio::test]
 async fn numbers_lookup() {
     let Some(client) = client() else {
         return;
@@ -921,60 +993,6 @@ async fn voice_catalogue_list() {
 }
 
 #[tokio::test]
-async fn channels_create_rcs() {
-    let Some(client) = client() else {
-        return;
-    };
-    let request: AddRcsChannelRequest = serde_json::from_str(r##"{"sandbox": false, "display_name": "Example Retail", "description": "Order and delivery notifications for Example Retail customers.", "agent_use_case": "NOTIFICATIONS", "brand_name": "Example Retail", "privacy_policy_url": "https://example.com/privacy", "terms_and_conditions_url": "https://example.com/terms", "website_url": "https://example.com", "brand_color": "#1a73e8", "logo_url": "https://example.com/assets/logo-224x224.png", "banner_url": "https://example.com/assets/banner-1440x448.png", "brand_phone_number": "+12125550100", "customer_support_phone_number": "+18005550100", "brand_email": "hello@example.com", "customer_support_email": "support@example.com", "contact_name_and_title": "Jane Smith, Head of Marketing", "company_ein": "12-3456789", "entity_type": "PRIVATE_PROFIT", "official_address": {}, "brief_company_description": "Example Retail sells home goods across the US and ships to 48 states.", "opt_in_process_description": "Customers opt in at checkout by checking the SMS/RCS notifications box.", "start_message": "Welcome to Example Retail! Reply HELP for help or STOP to opt out.", "help_message": "For help, visit https://example.com/support or call 1-800-555-0100.", "stop_message": "You have been unsubscribed from Example Retail notifications.", "sample_messages": ["example"]}"##).expect("the example decodes");
-    client
-        .channels()
-        .create_rcs(&request)
-        .await
-        .expect("channels.create_rcs against the mock");
-}
-
-#[tokio::test]
-async fn channels_create_sms() {
-    let Some(client) = client() else {
-        return;
-    };
-    let request: AddSmsChannelRequest = serde_json::from_str(r#"{"sandbox": false, "country": "US", "number_type": "TEN_DLC", "area_codes": ["example"]}"#).expect("the example decodes");
-    client
-        .channels()
-        .create_sms(&request)
-        .await
-        .expect("channels.create_sms against the mock");
-}
-
-#[tokio::test]
-async fn channels_list_sms_markets() {
-    let Some(client) = client() else {
-        return;
-    };
-    client
-        .channels()
-        .list_sms_markets()
-        .await
-        .expect("channels.list_sms_markets against the mock");
-}
-
-#[tokio::test]
-async fn channels_create_whatsapp() {
-    let Some(client) = client() else {
-        return;
-    };
-    let request: AddWhatsappChannelRequest = serde_json::from_str(
-        r#"{"sandbox": false, "waba_id": "102290129340398", "phone_number_id": "106540352242922"}"#,
-    )
-    .expect("the example decodes");
-    client
-        .channels()
-        .create_whatsapp(&request)
-        .await
-        .expect("channels.create_whatsapp against the mock");
-}
-
-#[tokio::test]
 async fn channels_list() {
     let Some(client) = client() else {
         return;
@@ -987,19 +1005,47 @@ async fn channels_list() {
 }
 
 #[tokio::test]
-async fn channels_retrieve_sms_market() {
+async fn channels_sms_create() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: AddSmsChannelRequest = serde_json::from_str(r#"{"sandbox": false, "country": "US", "number_type": "TEN_DLC", "area_codes": ["example"]}"#).expect("the example decodes");
+    client
+        .channels()
+        .sms()
+        .create(&request)
+        .await
+        .expect("channels.sms.create against the mock");
+}
+
+#[tokio::test]
+async fn channels_sms_list() {
     let Some(client) = client() else {
         return;
     };
     client
         .channels()
-        .retrieve_sms_market("US", "ten_dlc")
+        .sms()
+        .list()
         .await
-        .expect("channels.retrieve_sms_market against the mock");
+        .expect("channels.sms.list against the mock");
 }
 
 #[tokio::test]
-async fn channels_update_sms_market() {
+async fn channels_sms_retrieve() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .channels()
+        .sms()
+        .retrieve("US", "ten_dlc")
+        .await
+        .expect("channels.sms.retrieve against the mock");
+}
+
+#[tokio::test]
+async fn channels_sms_update() {
     let Some(client) = client() else {
         return;
     };
@@ -1007,9 +1053,41 @@ async fn channels_update_sms_market() {
         serde_json::from_str(r#"{"sandbox": false}"#).expect("the example decodes");
     client
         .channels()
-        .update_sms_market("US", "ten_dlc", &request)
+        .sms()
+        .update("US", "ten_dlc", &request)
         .await
-        .expect("channels.update_sms_market against the mock");
+        .expect("channels.sms.update against the mock");
+}
+
+#[tokio::test]
+async fn channels_rcs_create() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: AddRcsChannelRequest = serde_json::from_str(r##"{"sandbox": false, "display_name": "Example Retail", "description": "Order and delivery notifications for Example Retail customers.", "agent_use_case": "NOTIFICATIONS", "brand_name": "Example Retail", "privacy_policy_url": "https://example.com/privacy", "terms_and_conditions_url": "https://example.com/terms", "website_url": "https://example.com", "brand_color": "#1a73e8", "logo_url": "https://example.com/assets/logo-224x224.png", "banner_url": "https://example.com/assets/banner-1440x448.png", "brand_phone_number": "+12125550100", "customer_support_phone_number": "+18005550100", "brand_email": "hello@example.com", "customer_support_email": "support@example.com", "contact_name_and_title": "Jane Smith, Head of Marketing", "company_ein": "12-3456789", "entity_type": "PRIVATE_PROFIT", "official_address": {}, "brief_company_description": "Example Retail sells home goods across the US and ships to 48 states.", "opt_in_process_description": "Customers opt in at checkout by checking the SMS/RCS notifications box.", "start_message": "Welcome to Example Retail! Reply HELP for help or STOP to opt out.", "help_message": "For help, visit https://example.com/support or call 1-800-555-0100.", "stop_message": "You have been unsubscribed from Example Retail notifications.", "sample_messages": ["example"]}"##).expect("the example decodes");
+    client
+        .channels()
+        .rcs()
+        .create(&request)
+        .await
+        .expect("channels.rcs.create against the mock");
+}
+
+#[tokio::test]
+async fn channels_whatsapp_create() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: AddWhatsappChannelRequest = serde_json::from_str(
+        r#"{"sandbox": false, "waba_id": "102290129340398", "phone_number_id": "106540352242922"}"#,
+    )
+    .expect("the example decodes");
+    client
+        .channels()
+        .whatsapp()
+        .create(&request)
+        .await
+        .expect("channels.whatsapp.create against the mock");
 }
 
 #[tokio::test]
@@ -1099,6 +1177,21 @@ async fn channels_voice_test() {
 }
 
 #[tokio::test]
+async fn compliance_retrieve_requirements() {
+    let Some(client) = client() else {
+        return;
+    };
+    let params = sent::resources::compliance::ComplianceRetrieveRequirementsParams {
+        ..Default::default()
+    };
+    client
+        .compliance()
+        .retrieve_requirements(&params)
+        .await
+        .expect("compliance.retrieve_requirements against the mock");
+}
+
+#[tokio::test]
 async fn me_retrieve() {
     let Some(client) = client() else {
         return;
@@ -1108,91 +1201,4 @@ async fn me_retrieve() {
         .retrieve()
         .await
         .expect("me.retrieve against the mock");
-}
-
-#[tokio::test]
-async fn sender_profiles_create() {
-    let Some(client) = client() else {
-        return;
-    };
-    let request: CreateSenderProfileRequest = serde_json::from_str(
-        r#"{"sandbox": false, "name": "Example Retail", "short_name": "Example", "channels": {}}"#,
-    )
-    .expect("the example decodes");
-    client
-        .sender_profiles()
-        .create(&request)
-        .await
-        .expect("sender_profiles.create against the mock");
-}
-
-#[tokio::test]
-async fn sender_profiles_list() {
-    let Some(client) = client() else {
-        return;
-    };
-    let params = sent::resources::sender_profiles::SenderProfilesListParams {
-        page: Some(1),
-        page_size: Some(2),
-    };
-    client
-        .sender_profiles()
-        .list(&params)
-        .await
-        .expect("sender_profiles.list against the mock");
-}
-
-#[tokio::test]
-async fn sender_profiles_delete() {
-    let Some(client) = client() else {
-        return;
-    };
-    client
-        .sender_profiles()
-        .delete("3fa85f64-5717-4562-b3fc-2c963f66afa6")
-        .await
-        .expect("sender_profiles.delete against the mock");
-}
-
-#[tokio::test]
-async fn sender_profiles_retrieve() {
-    let Some(client) = client() else {
-        return;
-    };
-    client
-        .sender_profiles()
-        .retrieve("770e8400-e29b-41d4-a716-446655440002")
-        .await
-        .expect("sender_profiles.retrieve against the mock");
-}
-
-#[tokio::test]
-async fn sender_profiles_update() {
-    let Some(client) = client() else {
-        return;
-    };
-    let request: PatchSenderProfileRequest = serde_json::from_str(
-        r#"{"sandbox": false, "name": "Example Retail Renamed", "short_name": "EXMPL"}"#,
-    )
-    .expect("the example decodes");
-    client
-        .sender_profiles()
-        .update("770e8400-e29b-41d4-a716-446655440002", &request)
-        .await
-        .expect("sender_profiles.update against the mock");
-}
-
-#[tokio::test]
-async fn compliance_list_requirements() {
-    let Some(client) = client() else {
-        return;
-    };
-    let params = sent::resources::compliance::ComplianceListRequirementsParams {
-        ..Default::default()
-    };
-    client
-        .compliance()
-        .list_requirements(&params)
-        .await
-        .expect("compliance.list_requirements against the mock");
 }

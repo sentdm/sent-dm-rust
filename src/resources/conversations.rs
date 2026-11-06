@@ -29,7 +29,7 @@ impl<'a> Conversations<'a> {
     /// `GET /v3/conversations`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn list(&self, params: &ConversationsListParams) -> Result<Page<MessageResponse>> {
+    pub async fn list(&self, params: &ConversationsListParams) -> Result<Page<Message>> {
         let data: ConversationMessagesList = self
             .client
             .send(Method::GET, "/v3/conversations", params, None::<&()>)
@@ -43,7 +43,7 @@ impl<'a> Conversations<'a> {
     /// Every item of `list`, page after page, until Sent says there are no more.
     /// # Errors
     /// The first page that fails.
-    pub async fn list_all(&self, params: &ConversationsListParams) -> Result<Vec<MessageResponse>> {
+    pub async fn list_all(&self, params: &ConversationsListParams) -> Result<Vec<Message>> {
         let mut all = Vec::new();
         let mut params = params.clone();
         params.page = Some(params.page.unwrap_or(1));
@@ -69,7 +69,7 @@ impl<'a> Conversations<'a> {
         &self,
         id: &str,
         params: &ConversationsListMessagesParams,
-    ) -> Result<Page<MessageResponse>> {
+    ) -> Result<Page<Message>> {
         let data: ConversationMessagesList = self
             .client
             .send(
@@ -92,7 +92,7 @@ impl<'a> Conversations<'a> {
         &self,
         id: &str,
         params: &ConversationsListMessagesParams,
-    ) -> Result<Vec<MessageResponse>> {
+    ) -> Result<Vec<Message>> {
         let mut all = Vec::new();
         let mut params = params.clone();
         params.page = Some(params.page.unwrap_or(1));

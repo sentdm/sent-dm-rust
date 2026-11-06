@@ -61,7 +61,7 @@ impl<'a> Profiles<'a> {
         &self,
         profile_id: &str,
         request: &CompleteProfileRequest,
-    ) -> Result<ProfileCompletionResultResponse> {
+    ) -> Result<ProfileCompletionResult> {
         self.client
             .send(
                 Method::POST,
@@ -113,7 +113,7 @@ impl<'a> Profiles<'a> {
     /// `GET /v3/profiles`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn list(&self) -> Result<ProfilesListResponse> {
+    pub async fn list(&self) -> Result<ProfilesList> {
         self.client
             .send(Method::GET, "/v3/profiles", &NoQuery {}, None::<&()>)
             .await

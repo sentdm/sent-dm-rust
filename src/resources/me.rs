@@ -45,7 +45,7 @@ impl<'a> Me<'a> {
     /// `GET /v3/me`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn retrieve(&self) -> Result<AccountResponse> {
+    pub async fn retrieve(&self) -> Result<Account> {
         self.client
             .send(Method::GET, "/v3/me", &NoQuery {}, None::<&()>)
             .await

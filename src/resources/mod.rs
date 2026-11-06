@@ -53,6 +53,11 @@ impl Client {
     pub fn profiles(&self) -> profiles::Profiles<'_> {
         profiles::Profiles { client: self }
     }
+    /// The `sender_profiles` resource.
+    #[must_use]
+    pub fn sender_profiles(&self) -> sender_profiles::SenderProfiles<'_> {
+        sender_profiles::SenderProfiles { client: self }
+    }
     /// The `numbers` resource.
     #[must_use]
     pub fn numbers(&self) -> numbers::Numbers<'_> {
@@ -83,19 +88,14 @@ impl Client {
     pub fn channels(&self) -> channels::Channels<'_> {
         channels::Channels { client: self }
     }
-    /// The `me` resource.
-    #[must_use]
-    pub fn me(&self) -> me::Me<'_> {
-        me::Me { client: self }
-    }
-    /// The `sender_profiles` resource.
-    #[must_use]
-    pub fn sender_profiles(&self) -> sender_profiles::SenderProfiles<'_> {
-        sender_profiles::SenderProfiles { client: self }
-    }
     /// The `compliance` resource.
     #[must_use]
     pub fn compliance(&self) -> compliance::Compliance<'_> {
         compliance::Compliance { client: self }
+    }
+    /// The `me` resource.
+    #[must_use]
+    pub fn me(&self) -> me::Me<'_> {
+        me::Me { client: self }
     }
 }

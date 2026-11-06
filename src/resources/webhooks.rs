@@ -43,7 +43,7 @@ impl<'a> Webhooks<'a> {
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
     pub async fn list(&self, params: &WebhooksListParams) -> Result<Page<WebhookResponse>> {
-        let data: WebhooksListV3Response = self
+        let data: WebhooksList = self
             .client
             .send(Method::GET, "/v3/webhooks", params, None::<&()>)
             .await?;
@@ -140,8 +140,8 @@ impl<'a> Webhooks<'a> {
         &self,
         id: &str,
         params: &WebhooksListEventsParams,
-    ) -> Result<Page<WebhookEventV3Response>> {
-        let data: WebhookEventsListV3Response = self
+    ) -> Result<Page<WebhookDelivery>> {
+        let data: WebhookEventsList = self
             .client
             .send(
                 Method::GET,
@@ -163,7 +163,7 @@ impl<'a> Webhooks<'a> {
         &self,
         id: &str,
         params: &WebhooksListEventsParams,
-    ) -> Result<Vec<WebhookEventV3Response>> {
+    ) -> Result<Vec<WebhookDelivery>> {
         let mut all = Vec::new();
         let mut params = params.clone();
         params.page = Some(params.page.unwrap_or(1));
@@ -185,7 +185,7 @@ impl<'a> Webhooks<'a> {
     /// `GET /v3/webhooks/event-types`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn list_event_types(&self) -> Result<WebhookEventTypesListV3Response> {
+    pub async fn list_event_types(&self) -> Result<WebhookEventTypesList> {
         self.client
             .send(
                 Method::GET,
@@ -207,7 +207,7 @@ impl<'a> Webhooks<'a> {
         &self,
         id: &str,
         request: &RotateWebhookSecretV3Request,
-    ) -> Result<RotateSecretV3Response> {
+    ) -> Result<WebhookSecret> {
         self.client
             .send(
                 Method::POST,
@@ -225,11 +225,7 @@ impl<'a> Webhooks<'a> {
     /// `POST /v3/webhooks/{id}/test`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn test(
-        &self,
-        id: &str,
-        request: &TestWebhookV3Request,
-    ) -> Result<TestWebhookV3Response> {
+    pub async fn test(&self, id: &str, request: &TestWebhookV3Request) -> Result<WebhookTest> {
         self.client
             .send(
                 Method::POST,

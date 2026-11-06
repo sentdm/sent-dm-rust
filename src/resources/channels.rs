@@ -22,6 +22,30 @@ pub struct Channels<'a> {
 }
 
 impl<'a> Channels<'a> {
+    /// The `sms` sub-resource.
+    #[must_use]
+    pub fn sms(&self) -> Sms<'a> {
+        Sms {
+            client: self.client,
+        }
+    }
+
+    /// The `rcs` sub-resource.
+    #[must_use]
+    pub fn rcs(&self) -> Rcs<'a> {
+        Rcs {
+            client: self.client,
+        }
+    }
+
+    /// The `whatsapp` sub-resource.
+    #[must_use]
+    pub fn whatsapp(&self) -> Whatsapp<'a> {
+        Whatsapp {
+            client: self.client,
+        }
+    }
+
     /// The `voice` sub-resource.
     #[must_use]
     pub fn voice(&self) -> Voice<'a> {
@@ -30,47 +54,33 @@ impl<'a> Channels<'a> {
         }
     }
 
-    /// Add an RCS agent
+    /// Get your channels
     ///
-    /// Asks for an RCS agent and records the order form the carriers vet it against. Always `202`: an agent is approved by the carriers, not by this call, and nothing here can make that happen sooner.
+    /// Every market you send SMS in, your WhatsApp account, your RCS agent and the numbers you carry phone calls on — with each one's status, and what each market has supplied.
     ///
-    /// ## What it asks for
+    /// **Status lives on the channel, never on you or your brand.** An identity has no lifecycle; what has one is the registration of a sender in a market and the approval of a channel. So a customer live in one country and mid-registration in another reports exactly that, rather than one flattened answer.
     ///
-    /// The RCS Agent Order Form — the same one our team fills in on your behalf today, so nothing has to be collected from you twice. **All fields are required** and must be submitted together so the carrier review has everything it needs. The only exception is `opt_in_screenshot_url`.
+    /// `sms[n].compliance` carries what each market holds: `brand` and `campaign` for markets that register with a compliance regime such as US TEN_DLC, and `documents` for markets that pre-register an alphanumeric or similar sender. Absent means the market registers with nobody and nothing has been supplied. `GET /v3/compliance/requirements` says what a market demands of any new customer; this says what you gave it.
     ///
-    /// **Agent identity:** `display_name`, `description`, `agent_use_case` (must be one of the accepted use cases; the error names the set), `brand_color` (six-digit hex, `#RRGGBB`).
+    /// Send `x-profile-id` with an organization key to read one of your profiles' channels.
     ///
-    /// **Brand identity:** `brand_name` — the brand this agent presents. Not taken from `compliance.brand`: a business may present a different brand on RCS than the one its 10DLC registration is filed against, and the carriers vet this one. `privacy_policy_url`, `terms_and_conditions_url`, `website_url`, `logo_url`, and `banner_url` must be absolute `http(s)` URLs that the carriers can fetch without authentication. The form specifies 224×224 px and 50 KB for the logo and 1440×448 px and 200 KB for the banner; these cannot be checked without the image bytes.
-    ///
-    /// **Contact details:** `brand_phone_number`, `customer_support_phone_number`, `brand_email`, `customer_support_email`, `contact_name_and_title`.
-    ///
-    /// **Company:** `company_ein`, `entity_type`, `official_address` (street, city, state, postal_code, country), `brief_company_description`.
-    ///
-    /// **Consent and messages:** `opt_in_process_description`, `start_message`, `help_message`, `stop_message`, `sample_messages` (at least one example message).
-    ///
-    /// **Optional:** `opt_in_screenshot_url` (validated as an http(s) URL if supplied).
-    ///
-    /// Anything supplied is checked against accepted values rather than passed through: a value the provider rejects would otherwise surface days later, to somebody who cannot fix it without asking you.
-    ///
-    /// **A customer has one agent.** Asking again while you have one is `409`.
-    ///
-    /// ## What comes back, and what does not
-    ///
-    /// Returns **the agent** — the form as stored, plus `id` and `status`. Not your other channels, which this call cannot have changed.
-    ///
-    /// `status` is `PROVISIONING` until the agent is handed to the carriers and approved. **`GET /v3/channels` reports `rcs: null` until then** — a channel row is what routing reads to decide you are sendable, and writing one for an unapproved agent would claim a channel that cannot carry traffic.
-    ///
-    /// Send `x-profile-id` with an organization key to ask for one of your profiles' agents.
-    ///
-    /// `POST /v3/channels/rcs`
+    /// `GET /v3/channels`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn create_rcs(&self, request: &AddRcsChannelRequest) -> Result<RcsAgentState> {
+    pub async fn list(&self) -> Result<ChannelsState> {
         self.client
-            .send(Method::POST, "/v3/channels/rcs", &NoQuery {}, Some(request))
+            .send(Method::GET, "/v3/channels", &NoQuery {}, None::<&()>)
             .await
     }
+}
 
+/// The `channels.sms` resource: `client.channels().sms()`.
+#[derive(Debug, Clone, Copy)]
+pub struct Sms<'a> {
+    pub(crate) client: &'a Client,
+}
+
+impl<'a> Sms<'a> {
     /// Add an SMS market — a country and sender type
     ///
     /// Gives the customer a sender in one country — the first market it sends in, and the fifth.
@@ -116,7 +126,7 @@ impl<'a> Channels<'a> {
     /// `POST /v3/channels/sms`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn create_sms(&self, request: &AddSmsChannelRequest) -> Result<SmsMarketState> {
+    pub async fn create(&self, request: &AddSmsChannelRequest) -> Result<SmsMarket> {
         self.client
             .send(Method::POST, "/v3/channels/sms", &NoQuery {}, Some(request))
             .await
@@ -133,59 +143,9 @@ impl<'a> Channels<'a> {
     /// `GET /v3/channels/sms`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn list_sms_markets(&self) -> Result<Vec<SmsMarketState>> {
+    pub async fn list(&self) -> Result<Vec<SmsMarket>> {
         self.client
             .send(Method::GET, "/v3/channels/sms", &NoQuery {}, None::<&()>)
-            .await
-    }
-
-    /// Add a WhatsApp account
-    ///
-    /// Connects a WhatsApp Business Account shared with us through a Multi-Partner Solution to the calling sender profile. Send `x-profile-id` for the profile the account belongs to.
-    ///
-    /// **Two fields, because everything else is derived.** `waba_id` says which of your organization's shared accounts this is — you hold one per client, and nothing else can say which. `phone_number_id` names the account's number, which is what assigns it to the profile as the number it sends from.
-    ///
-    /// The solution the account arrived through, the client business portfolio that owns it, the access token and its expiry are all resolved from your organization. They are not accepted here: the first two are Meta's answer about provenance, and the token is minted per client business and rotates roughly every sixty days, so a value you sent would be stale before it was useful.
-    ///
-    /// `phone_number_id` is optional. Omit it to connect the account now and settle the number later — the channel reads as `ACTION_NEEDED` with `reason_code` `CHANNEL_007`, and the profile's WhatsApp messages fail until a number is named. They do not fall back to your organization's account. Call this endpoint again with `phone_number_id` to name one.
-    ///
-    /// The same resolution runs behind `channels.whatsapp` on `POST /v3/sender-profiles`, so connecting at create and connecting afterwards fill the same fields.
-    ///
-    /// Returns **the account**, not every channel you have — adding one cannot change a market or an RCS agent, and `GET /v3/channels` is the whole picture. Giving an account up is not self-service: ask support, because deregistering a number lands in your own Meta business.
-    ///
-    /// `POST /v3/channels/whatsapp`
-    /// # Errors
-    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn create_whatsapp(
-        &self,
-        request: &AddWhatsappChannelRequest,
-    ) -> Result<WhatsappChannelState> {
-        self.client
-            .send(
-                Method::POST,
-                "/v3/channels/whatsapp",
-                &NoQuery {},
-                Some(request),
-            )
-            .await
-    }
-
-    /// Get your channels
-    ///
-    /// Every market you send SMS in, your WhatsApp account, your RCS agent and the numbers you carry phone calls on — with each one's status, and what each market has supplied.
-    ///
-    /// **Status lives on the channel, never on you or your brand.** An identity has no lifecycle; what has one is the registration of a sender in a market and the approval of a channel. So a customer live in one country and mid-registration in another reports exactly that, rather than one flattened answer.
-    ///
-    /// `sms[n].compliance` carries what each market holds: `brand` and `campaign` for markets that register with a compliance regime such as US TEN_DLC, and `documents` for markets that pre-register an alphanumeric or similar sender. Absent means the market registers with nobody and nothing has been supplied. `GET /v3/compliance/requirements` says what a market demands of any new customer; this says what you gave it.
-    ///
-    /// Send `x-profile-id` with an organization key to read one of your profiles' channels.
-    ///
-    /// `GET /v3/channels`
-    /// # Errors
-    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn list(&self) -> Result<SenderProfileChannelsState> {
-        self.client
-            .send(Method::GET, "/v3/channels", &NoQuery {}, None::<&()>)
             .await
     }
 
@@ -218,7 +178,7 @@ impl<'a> Channels<'a> {
     /// `GET /v3/channels/sms/{country}/{type}`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn retrieve_sms_market(&self, country: &str, type_: &str) -> Result<SmsMarketState> {
+    pub async fn retrieve(&self, country: &str, type_: &str) -> Result<SmsMarket> {
         self.client
             .send(
                 Method::GET,
@@ -302,12 +262,12 @@ impl<'a> Channels<'a> {
     /// `PATCH /v3/channels/sms/{country}/{type}`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn update_sms_market(
+    pub async fn update(
         &self,
         country: &str,
         type_: &str,
         request: &ChannelsMarketMarketComplianceWriteRequest,
-    ) -> Result<SmsMarketState> {
+    ) -> Result<SmsMarket> {
         self.client
             .send(
                 Method::PATCH,
@@ -316,6 +276,91 @@ impl<'a> Channels<'a> {
                     crate::client::encode(country),
                     crate::client::encode(type_)
                 ),
+                &NoQuery {},
+                Some(request),
+            )
+            .await
+    }
+}
+
+/// The `channels.rcs` resource: `client.channels().rcs()`.
+#[derive(Debug, Clone, Copy)]
+pub struct Rcs<'a> {
+    pub(crate) client: &'a Client,
+}
+
+impl<'a> Rcs<'a> {
+    /// Add an RCS agent
+    ///
+    /// Asks for an RCS agent and records the order form the carriers vet it against. Always `202`: an agent is approved by the carriers, not by this call, and nothing here can make that happen sooner.
+    ///
+    /// ## What it asks for
+    ///
+    /// The RCS Agent Order Form — the same one our team fills in on your behalf today, so nothing has to be collected from you twice. **All fields are required** and must be submitted together so the carrier review has everything it needs. The only exception is `opt_in_screenshot_url`.
+    ///
+    /// **Agent identity:** `display_name`, `description`, `agent_use_case` (must be one of the accepted use cases; the error names the set), `brand_color` (six-digit hex, `#RRGGBB`).
+    ///
+    /// **Brand identity:** `brand_name` — the brand this agent presents. Not taken from `compliance.brand`: a business may present a different brand on RCS than the one its 10DLC registration is filed against, and the carriers vet this one. `privacy_policy_url`, `terms_and_conditions_url`, `website_url`, `logo_url`, and `banner_url` must be absolute `http(s)` URLs that the carriers can fetch without authentication. The form specifies 224×224 px and 50 KB for the logo and 1440×448 px and 200 KB for the banner; these cannot be checked without the image bytes.
+    ///
+    /// **Contact details:** `brand_phone_number`, `customer_support_phone_number`, `brand_email`, `customer_support_email`, `contact_name_and_title`.
+    ///
+    /// **Company:** `company_ein`, `entity_type`, `official_address` (street, city, state, postal_code, country), `brief_company_description`.
+    ///
+    /// **Consent and messages:** `opt_in_process_description`, `start_message`, `help_message`, `stop_message`, `sample_messages` (at least one example message).
+    ///
+    /// **Optional:** `opt_in_screenshot_url` (validated as an http(s) URL if supplied).
+    ///
+    /// Anything supplied is checked against accepted values rather than passed through: a value the provider rejects would otherwise surface days later, to somebody who cannot fix it without asking you.
+    ///
+    /// **A customer has one agent.** Asking again while you have one is `409`.
+    ///
+    /// ## What comes back, and what does not
+    ///
+    /// Returns **the agent** — the form as stored, plus `id` and `status`. Not your other channels, which this call cannot have changed.
+    ///
+    /// `status` is `PROVISIONING` until the agent is handed to the carriers and approved. **`GET /v3/channels` reports `rcs: null` until then** — a channel row is what routing reads to decide you are sendable, and writing one for an unapproved agent would claim a channel that cannot carry traffic.
+    ///
+    /// Send `x-profile-id` with an organization key to ask for one of your profiles' agents.
+    ///
+    /// `POST /v3/channels/rcs`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn create(&self, request: &AddRcsChannelRequest) -> Result<RcsAgent> {
+        self.client
+            .send(Method::POST, "/v3/channels/rcs", &NoQuery {}, Some(request))
+            .await
+    }
+}
+
+/// The `channels.whatsapp` resource: `client.channels().whatsapp()`.
+#[derive(Debug, Clone, Copy)]
+pub struct Whatsapp<'a> {
+    pub(crate) client: &'a Client,
+}
+
+impl<'a> Whatsapp<'a> {
+    /// Add a WhatsApp account
+    ///
+    /// Connects a WhatsApp Business Account shared with us through a Multi-Partner Solution to the calling sender profile. Send `x-profile-id` for the profile the account belongs to.
+    ///
+    /// **Two fields, because everything else is derived.** `waba_id` says which of your organization's shared accounts this is — you hold one per client, and nothing else can say which. `phone_number_id` names the account's number, which is what assigns it to the profile as the number it sends from.
+    ///
+    /// The solution the account arrived through, the client business portfolio that owns it, the access token and its expiry are all resolved from your organization. They are not accepted here: the first two are Meta's answer about provenance, and the token is minted per client business and rotates roughly every sixty days, so a value you sent would be stale before it was useful.
+    ///
+    /// `phone_number_id` is optional. Omit it to connect the account now and settle the number later — the channel reads as `ACTION_NEEDED` with `reason_code` `CHANNEL_007`, and the profile's WhatsApp messages fail until a number is named. They do not fall back to your organization's account. Call this endpoint again with `phone_number_id` to name one.
+    ///
+    /// The same resolution runs behind `channels.whatsapp` on `POST /v3/sender-profiles`, so connecting at create and connecting afterwards fill the same fields.
+    ///
+    /// Returns **the account**, not every channel you have — adding one cannot change a market or an RCS agent, and `GET /v3/channels` is the whole picture. Giving an account up is not self-service: ask support, because deregistering a number lands in your own Meta business.
+    ///
+    /// `POST /v3/channels/whatsapp`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn create(&self, request: &AddWhatsappChannelRequest) -> Result<WhatsappChannel> {
+        self.client
+            .send(
+                Method::POST,
+                "/v3/channels/whatsapp",
                 &NoQuery {},
                 Some(request),
             )

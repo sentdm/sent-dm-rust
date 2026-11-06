@@ -59,10 +59,10 @@ impl<'a> Compliance<'a> {
     /// `GET /v3/compliance/requirements`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn list_requirements(
+    pub async fn retrieve_requirements(
         &self,
-        params: &ComplianceListRequirementsParams,
-    ) -> Result<ComplianceRequirementsResponse> {
+        params: &ComplianceRetrieveRequirementsParams,
+    ) -> Result<ComplianceRequirements> {
         self.client
             .send(
                 Method::GET,
@@ -76,7 +76,7 @@ impl<'a> Compliance<'a> {
 
 /// The query parameters of `GET /v3/compliance/requirements`.
 #[derive(Debug, Clone, Default, Serialize)]
-pub struct ComplianceListRequirementsParams {
+pub struct ComplianceRetrieveRequirementsParams {
     /// Channel the sender is for: sms, whatsapp or rcs. Defaults to sms, which is the only one answered today — the other two are 501 until their requirements are declared.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub channel: Option<String>,

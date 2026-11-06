@@ -123,10 +123,7 @@ impl<'a> SenderProfiles<'a> {
     /// `POST /v3/sender-profiles`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn create(
-        &self,
-        request: &CreateSenderProfileRequest,
-    ) -> Result<SenderProfileResponse> {
+    pub async fn create(&self, request: &CreateSenderProfileRequest) -> Result<SenderProfile> {
         self.client
             .send(
                 Method::POST,
@@ -150,11 +147,8 @@ impl<'a> SenderProfiles<'a> {
     /// `GET /v3/sender-profiles`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn list(
-        &self,
-        params: &SenderProfilesListParams,
-    ) -> Result<Page<SenderProfileResponse>> {
-        let data: SenderProfilesListResponse = self
+    pub async fn list(&self, params: &SenderProfilesListParams) -> Result<Page<SenderProfile>> {
+        let data: SenderProfilesList = self
             .client
             .send(Method::GET, "/v3/sender-profiles", params, None::<&()>)
             .await?;
@@ -167,10 +161,7 @@ impl<'a> SenderProfiles<'a> {
     /// Every item of `list`, page after page, until Sent says there are no more.
     /// # Errors
     /// The first page that fails.
-    pub async fn list_all(
-        &self,
-        params: &SenderProfilesListParams,
-    ) -> Result<Vec<SenderProfileResponse>> {
+    pub async fn list_all(&self, params: &SenderProfilesListParams) -> Result<Vec<SenderProfile>> {
         let mut all = Vec::new();
         let mut params = params.clone();
         params.page = Some(params.page.unwrap_or(1));
@@ -183,36 +174,6 @@ impl<'a> SenderProfiles<'a> {
             }
             params.page = Some(params.page.unwrap_or(1) + 1);
         }
-    }
-
-    /// Delete a sender profile
-    ///
-    /// Deletes one of your sender profiles and returns `204`.
-    ///
-    /// The delete is **soft**: the profile stops being usable and stops appearing in reads, and its message history is kept, because deleting a profile must not delete the record of what it sent.
-    ///
-    /// ## What it releases
-    ///
-    /// Anything the profile still held goes with it. A **phone number** returns to our inventory and can be given to whoever asks next — it does not stay reserved for you, and getting the same number back afterwards is not something we can promise. A **WhatsApp account of its own** is deregistered from Meta. Its routing rules stop being used, so nothing sends through the profile after this call.
-    ///
-    /// A profile that only inherits from its organization holds nothing of its own and releases nothing.
-    ///
-    /// ## When it is refused
-    ///
-    /// A number the profile holds that your **WhatsApp Business Account still carries** refuses the delete with a `409 CONFLICT_012`, and nothing is deleted: it would return to our shared inventory while Meta still routes WhatsApp to it, and the next customer given it could not register it at all. Only you can take it off the account — deregister **and** delete it in WhatsApp Manager, then try again. A `409 CONFLICT_013` means we could not read the account, so we cannot tell either way.
-    ///
-    /// `DELETE /v3/sender-profiles/{id}`
-    /// # Errors
-    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn delete(&self, id: &str) -> Result<()> {
-        self.client
-            .send_empty(
-                Method::DELETE,
-                &format!("/v3/sender-profiles/{}", crate::client::encode(id)),
-                &NoQuery {},
-                None::<&()>,
-            )
-            .await
     }
 
     /// Get a sender profile
@@ -234,7 +195,7 @@ impl<'a> SenderProfiles<'a> {
     /// `GET /v3/sender-profiles/{id}`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn retrieve(&self, id: &str) -> Result<SenderProfileResponse> {
+    pub async fn retrieve(&self, id: &str) -> Result<SenderProfile> {
         self.client
             .send(
                 Method::GET,
@@ -264,13 +225,43 @@ impl<'a> SenderProfiles<'a> {
         &self,
         id: &str,
         request: &PatchSenderProfileRequest,
-    ) -> Result<SenderProfileResponse> {
+    ) -> Result<SenderProfile> {
         self.client
             .send(
                 Method::PATCH,
                 &format!("/v3/sender-profiles/{}", crate::client::encode(id)),
                 &NoQuery {},
                 Some(request),
+            )
+            .await
+    }
+
+    /// Delete a sender profile
+    ///
+    /// Deletes one of your sender profiles and returns `204`.
+    ///
+    /// The delete is **soft**: the profile stops being usable and stops appearing in reads, and its message history is kept, because deleting a profile must not delete the record of what it sent.
+    ///
+    /// ## What it releases
+    ///
+    /// Anything the profile still held goes with it. A **phone number** returns to our inventory and can be given to whoever asks next — it does not stay reserved for you, and getting the same number back afterwards is not something we can promise. A **WhatsApp account of its own** is deregistered from Meta. Its routing rules stop being used, so nothing sends through the profile after this call.
+    ///
+    /// A profile that only inherits from its organization holds nothing of its own and releases nothing.
+    ///
+    /// ## When it is refused
+    ///
+    /// A number the profile holds that your **WhatsApp Business Account still carries** refuses the delete with a `409 CONFLICT_012`, and nothing is deleted: it would return to our shared inventory while Meta still routes WhatsApp to it, and the next customer given it could not register it at all. Only you can take it off the account — deregister **and** delete it in WhatsApp Manager, then try again. A `409 CONFLICT_013` means we could not read the account, so we cannot tell either way.
+    ///
+    /// `DELETE /v3/sender-profiles/{id}`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn delete(&self, id: &str) -> Result<()> {
+        self.client
+            .send_empty(
+                Method::DELETE,
+                &format!("/v3/sender-profiles/{}", crate::client::encode(id)),
+                &NoQuery {},
+                None::<&()>,
             )
             .await
     }

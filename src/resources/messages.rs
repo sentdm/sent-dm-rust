@@ -29,7 +29,7 @@ impl<'a> Messages<'a> {
     /// `GET /v3/messages/{id}/activities`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn retrieve_activities(&self, id: &str) -> Result<MessageActivitiesResponse> {
+    pub async fn retrieve_activities(&self, id: &str) -> Result<MessageActivities> {
         self.client
             .send(
                 Method::GET,
@@ -47,7 +47,7 @@ impl<'a> Messages<'a> {
     /// `GET /v3/messages/{id}`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn retrieve_status(&self, id: &str) -> Result<MessageResponse> {
+    pub async fn retrieve_status(&self, id: &str) -> Result<Message> {
         self.client
             .send(
                 Method::GET,
@@ -65,7 +65,7 @@ impl<'a> Messages<'a> {
     /// `POST /v3/messages`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn send(&self, request: &SendMessageV3Request) -> Result<SendMessageResponse> {
+    pub async fn send(&self, request: &SendMessageV3Request) -> Result<MessageSendResult> {
         self.client
             .send(Method::POST, "/v3/messages", &NoQuery {}, Some(request))
             .await
@@ -92,7 +92,7 @@ impl<'a> Messages<'a> {
         &self,
         id: &str,
         request: &ResendMessageV3Request,
-    ) -> Result<SendMessageResponse> {
+    ) -> Result<MessageSendResult> {
         self.client
             .send(
                 Method::POST,
@@ -128,7 +128,7 @@ impl<'a> Messages<'a> {
         &self,
         id: &str,
         request: &CancelMessageV3Request,
-    ) -> Result<CancelMessageV3Response> {
+    ) -> Result<CancelledMessage> {
         self.client
             .send(
                 Method::POST,

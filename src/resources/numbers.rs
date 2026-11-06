@@ -29,7 +29,7 @@ impl<'a> Numbers<'a> {
     /// `GET /v3/numbers/lookup/{phoneNumber}`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn lookup(&self, phone_number: &str) -> Result<NumberLookupResultResponse> {
+    pub async fn lookup(&self, phone_number: &str) -> Result<NumberLookupResult> {
         self.client
             .send(
                 Method::GET,
