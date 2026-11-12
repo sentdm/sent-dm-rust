@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0](https://github.com/sentdm/sent-dm-rust/compare/v0.2.0...v0.3.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** sync OpenAPI spec from production
+
+### Features
+
+* **api:** sync OpenAPI spec from production ([817f2ba](https://github.com/sentdm/sent-dm-rust/commit/817f2ba5141af359dc8854c5e96fadb5eaad170a))
+
+
+### Bug Fixes
+
+* **sdk:** methods for the US 10DLC campaigns, numbers and market compliance ([2652f98](https://github.com/sentdm/sent-dm-rust/commit/2652f98e3556990e75bfd05705a38da4bb862b95))
+
 ## [0.2.0](https://github.com/sentdm/sent-dm-rust/compare/v0.1.0...v0.2.0) (2026-11-06)
 
 
