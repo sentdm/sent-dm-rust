@@ -96,6 +96,9 @@ pub struct Account {
     pub profiles: Option<Vec<AccountProfile>>,
 }
 
+/// The same shape as `ChannelsMarketComplianceWriteRequest`.
+pub type AddBrandCampaignRequest = ChannelsMarketComplianceWriteRequest;
+
 /// The `AddCallParticipantRequest` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct AddCallParticipantRequest {
@@ -108,6 +111,23 @@ pub struct AddCallParticipantRequest {
     /// The number shown to a phone participant as the caller, in E.164 format. Must be one of your numbers. The call's owning number when omitted
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub caller_id: Option<String>,
+}
+
+/// The `AddCampaignNumbersRequest` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AddCampaignNumbersRequest {
+    /// Sandbox flag - when true, the operation is simulated without side effects
+    /// Useful for testing integrations without actual execution
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sandbox: Option<bool>,
+    /// The campaign to add the numbers to, as compliance.campaigns[].id reports it. Required.
+    pub campaign_id: String,
+    /// The numbers to add, one entry per area code, e.g. [{"area_code": "415", "quantity": 2}, {"quantity": 1}].
+    /// quantity defaults to 1, and an entry without area_code means any area code. Required.
+    ///
+    /// Added to what the campaign already asks for, never replacing it.
+    #[serde(default)]
+    pub numbers: Vec<SmsNumberRequest>,
 }
 
 /// The `AddRcsChannelRequest` object.
@@ -489,6 +509,15 @@ pub struct BrandCampaign {
         skip_serializing_if = "Option::is_none"
     )]
     pub customer_id: Option<String>,
+    /// Whether the campaign is the organization's, which the profile runs on, rather than one of the profile's own.
+    /// A profile running on its organization's campaign can hold campaigns of its own beside it, and the list
+    /// returns both.
+    #[serde(
+        rename = "isInherited",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub is_inherited: Option<bool>,
     /// Campaign type (for example KYC or App).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<String>,
@@ -921,7 +950,7 @@ pub struct Call {
     /// INITIATED, RINGING, ANSWERED, COMPLETED, FAILED, NO_ANSWER or REJECTED
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
-    /// Why the call did not complete: callback_timeout, invalid_answer, insufficient_balance, destination_blocked, callback_not_configured, rejected, no_answer, or for an agent call agent_busy or agent_unreachable. Null while the call is live, when it completed, and when it failed without a recorded reason
+    /// Why the call did not complete: callback_timeout, invalid_answer, insufficient_balance, payment_method_missing, destination_blocked, callback_not_configured, rejected, no_answer, or for an agent call agent_busy or agent_unreachable. Null while the call is live, when it completed, and when it failed without a recorded reason
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure_reason: Option<String>,
     /// When the call was placed (UTC)
@@ -3444,6 +3473,9 @@ pub struct PatchCallParticipantRequest {
     pub muted: bool,
 }
 
+/// The same shape as `ChannelsMarketComplianceWriteRequest`.
+pub type PatchMarketCampaignRequest = ChannelsMarketComplianceWriteRequest;
+
 /// The `PatchSenderProfileRequest` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct PatchSenderProfileRequest {
@@ -4457,10 +4489,6 @@ pub struct SmsMarket {
     pub country: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub number_type: Option<String>,
-    /// The sender itself. Null until a carrier-assigned number is procured. For a market holding several numbers,
-    /// the first active one (the first assigned while none is active) — every number is in numbers.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sender_value: Option<String>,
     /// Every number this market holds or is still owed, each with its area code and its own status
     /// (ACTIVE once it can send, PROVISIONING while it is still to be assigned, INACTIVE once
     /// it could send and no longer can). One entry for a
@@ -4556,6 +4584,11 @@ pub struct SmsNumber {
     /// once it could send and no longer can.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
+    /// The campaign the number is on, or is owed for: the id of its entry in compliance.campaigns.
+    /// Omitted for a market that registers no campaigns, and where the campaign is not known — a number recorded
+    /// without one, or one owed on a campaign inherited from the organization.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub campaign_id: Option<String>,
 }
 
 /// What a market has been given: the identity it registers under, its programme, and any documents attached.
@@ -4601,6 +4634,23 @@ pub struct SuppliedCompliance {
     /// caller sent this object back — which it is meant to be able to do.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub campaign: Option<HashMap<String, Value>>,
+    /// Every campaign this market registers, each with inherit saying whose it is — oldest first.
+    ///
+    /// A list, because a market can now be on more than one. POST
+    /// /v3/channels/sms/compliances/US/TEN_DLC/campaigns adds a campaign of the customer's own beside the one it has, and a
+    /// profile running on its organization's campaign keeps that one when it adds its own. Campaign
+    /// can only show one of them, so it stays as it was, for callers that read it, and this is where the rest
+    /// are.
+    ///
+    /// The organization's campaign reads "inherit": true and the customer's own read
+    /// "inherit": false. Each entry is the shape of Campaign plus id, the campaign's own
+    /// id, so several can be told apart. Campaign carries no id, because it is sent back to
+    /// PATCH, which refuses a key it does not declare; this list is read-only.
+    ///
+    /// Absent for a market that registers with nobody; empty for one that registers and has no campaign
+    /// yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub campaigns: Option<Vec<HashMap<String, Value>>>,
     /// What has been supplied for this market.
     ///
     /// Files, not values — the declared halves above carry the values. A document cannot be a JSON value,

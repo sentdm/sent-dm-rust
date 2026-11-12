@@ -1,7 +1,7 @@
 # Sent for Rust
 
 The Sent REST API from Rust: SMS, WhatsApp, RCS and voice through one API, with routing and compliance
-handled by [Sent](https://sent.dm). `82` operations of API `v3`, every one of them a
+handled by [Sent](https://sent.dm). `86` operations of API `v3`, every one of them a
 typed method.
 
 Status: Preview. Generated and rendered by `sent-dm-sdk-pipeline` from Sent's published OpenAPI document;
