@@ -1005,59 +1005,6 @@ async fn channels_list() {
 }
 
 #[tokio::test]
-async fn channels_create_campaign_numbers() {
-    let Some(client) = client() else {
-        return;
-    };
-    let request: AddCampaignNumbersRequest = serde_json::from_str(r#"{"sandbox": false, "campaign_id": "8f14e45f-ceea-467f-a8f0-7c2a3d1b9e01", "numbers": [{}]}"#).expect("the example decodes");
-    client
-        .channels()
-        .create_campaign_numbers(&request)
-        .await
-        .expect("channels.create_campaign_numbers against the mock");
-}
-
-#[tokio::test]
-async fn channels_brands_campaigns_add_brand_campaign() {
-    let Some(client) = client() else {
-        return;
-    };
-    let request: AddBrandCampaignRequest =
-        serde_json::from_str(r#"{"sandbox": false}"#).expect("the example decodes");
-    client
-        .channels()
-        .brands_campaigns_add_brand_campaign(&request)
-        .await
-        .expect("channels.brands_campaigns_add_brand_campaign against the mock");
-}
-
-#[tokio::test]
-async fn channels_brands_campaigns_get_market_compliance() {
-    let Some(client) = client() else {
-        return;
-    };
-    client
-        .channels()
-        .brands_campaigns_get_market_compliance()
-        .await
-        .expect("channels.brands_campaigns_get_market_compliance against the mock");
-}
-
-#[tokio::test]
-async fn channels_brands_campaigns_patch_market_campaign() {
-    let Some(client) = client() else {
-        return;
-    };
-    let request: PatchMarketCampaignRequest =
-        serde_json::from_str(r#"{"sandbox": false}"#).expect("the example decodes");
-    client
-        .channels()
-        .brands_campaigns_patch_market_campaign("3f2a6c1e-8b4d-4e2a-9c7f-1d5b0a9e4c21", &request)
-        .await
-        .expect("channels.brands_campaigns_patch_market_campaign against the mock");
-}
-
-#[tokio::test]
 async fn channels_sms_create() {
     let Some(client) = client() else {
         return;
@@ -1110,6 +1057,67 @@ async fn channels_sms_update() {
         .update("US", "ten_dlc", &request)
         .await
         .expect("channels.sms.update against the mock");
+}
+
+#[tokio::test]
+async fn channels_sms_ten_dlc_retrieve_compliance() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .channels()
+        .sms()
+        .ten_dlc()
+        .retrieve_compliance()
+        .await
+        .expect("channels.sms.ten_dlc.retrieve_compliance against the mock");
+}
+
+#[tokio::test]
+async fn channels_sms_ten_dlc_add_campaign() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: AddBrandCampaignRequest =
+        serde_json::from_str(r#"{"sandbox": false}"#).expect("the example decodes");
+    client
+        .channels()
+        .sms()
+        .ten_dlc()
+        .add_campaign(&request)
+        .await
+        .expect("channels.sms.ten_dlc.add_campaign against the mock");
+}
+
+#[tokio::test]
+async fn channels_sms_ten_dlc_update_campaign() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: PatchMarketCampaignRequest =
+        serde_json::from_str(r#"{"sandbox": false}"#).expect("the example decodes");
+    client
+        .channels()
+        .sms()
+        .ten_dlc()
+        .update_campaign("3f2a6c1e-8b4d-4e2a-9c7f-1d5b0a9e4c21", &request)
+        .await
+        .expect("channels.sms.ten_dlc.update_campaign against the mock");
+}
+
+#[tokio::test]
+async fn channels_sms_ten_dlc_add_numbers() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: AddCampaignNumbersRequest = serde_json::from_str(r#"{"sandbox": false, "campaign_id": "8f14e45f-ceea-467f-a8f0-7c2a3d1b9e01", "numbers": [{}]}"#).expect("the example decodes");
+    client
+        .channels()
+        .sms()
+        .ten_dlc()
+        .add_numbers(&request)
+        .await
+        .expect("channels.sms.ten_dlc.add_numbers against the mock");
 }
 
 #[tokio::test]

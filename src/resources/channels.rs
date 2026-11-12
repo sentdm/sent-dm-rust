@@ -72,132 +72,6 @@ impl<'a> Channels<'a> {
             .send(Method::GET, "/v3/channels", &NoQuery {}, None::<&()>)
             .await
     }
-
-    /// Add numbers to a campaign on the US 10DLC market
-    ///
-    /// Adds numbers to **one campaign of your own** on the US `TEN_DLC` market you hold, named by `campaign_id` — the `id` of an entry in the market's `compliance.campaigns`.
-    ///
-    /// ## What to send
-    ///
-    /// - `campaign_id` — the campaign. One you inherit from your organization is `400`: its numbers are the organization's. One out of service — expired, deactivated or released — is `409`.
-    /// - `numbers` — the list `POST /v3/channels/sms` takes, one entry per area code.
-    ///
-    /// ## What happens
-    ///
-    /// The entries are **added** to what the campaign already asks for. With everything it asks for, a campaign holds at most 49 numbers, counting one for each sender profile inheriting it. A campaign the carriers have not approved yet gets its numbers when they do; an approved one gets them now. Until a number is assigned it reads as `PROVISIONING` in the market's `numbers`, with the area code it was asked for.
-    ///
-    /// Returns **the market**, in the shape `GET /v3/channels/sms/US/TEN_DLC` returns, with `202`.
-    ///
-    /// `POST /v3/channels/sms/numbers/US/TEN_DLC`
-    /// # Errors
-    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn create_campaign_numbers(
-        &self,
-        request: &AddCampaignNumbersRequest,
-    ) -> Result<SmsMarket> {
-        self.client
-            .send(
-                Method::POST,
-                "/v3/channels/sms/numbers/US/TEN_DLC",
-                &NoQuery {},
-                Some(request),
-            )
-            .await
-    }
-
-    /// Add a campaign to the US 10DLC market
-    ///
-    /// Registers **a new campaign** on the US `TEN_DLC` market you already hold — the one market that registers campaigns. Use it when you want numbers for a different use case than the market's existing campaign covers. The campaign is filed under the brand the market files under — your organization's when you inherit its identity.
-    ///
-    /// ## What to send
-    ///
-    /// The new campaign's fields, at the top level of the body: use cases, consent narrative, volume, sample messages and keywords, under the `compliance.campaign.*` keys `GET /v3/compliance/requirements?country=US&type=TEN_DLC` lists, without that prefix. It has to be complete. A rejected field is keyed by its name (`description`). `id` and `inherit` are ignored, so an entry of `compliance.campaigns` can be sent as read.
-    ///
-    /// The identity is the market's and is not sent here. A market whose identity has no registration yet, or one not yet submitted for review, is `400`.
-    ///
-    /// ## What happens
-    ///
-    /// The campaign is recorded and goes for review; it is not filed with The Campaign Registry by this call. **It comes without numbers**: send its `id` from `compliance.campaigns` to `POST /v3/channels/sms/numbers/US/TEN_DLC` to give it some. **The campaign you already have, and its numbers, are not touched** — including a campaign you run on from your organization.
-    ///
-    /// **Each call files a new campaign**, which is charged when it is submitted. Send an `Idempotency-Key` so a retried request does not file a second one.
-    ///
-    /// To change the campaign a market already has, use `PATCH /v3/channels/sms/US/TEN_DLC`. Once a market holds more than one campaign, that `PATCH` refuses a campaign or numbers change (`409`) rather than guess which campaign is meant; numbers are added to a named campaign with `POST /v3/channels/sms/numbers/US/TEN_DLC`.
-    ///
-    /// Returns **the market**, in the shape `GET /v3/channels/sms/US/TEN_DLC` returns, with `202`.
-    ///
-    /// `POST /v3/channels/sms/compliances/US/TEN_DLC/campaigns`
-    /// # Errors
-    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn brands_campaigns_add_brand_campaign(
-        &self,
-        request: &AddBrandCampaignRequest,
-    ) -> Result<SmsMarket> {
-        self.client
-            .send(
-                Method::POST,
-                "/v3/channels/sms/compliances/US/TEN_DLC/campaigns",
-                &NoQuery {},
-                Some(request),
-            )
-            .await
-    }
-
-    /// Get the compliance of the US 10DLC market
-    ///
-    /// Reads what the US `TEN_DLC` market you hold has registered: the `brand` it files under, **every campaign** under `campaigns` (each with its `id` and `inherit`), and its `documents`. It is the `compliance` object `GET /v3/channels/sms/US/TEN_DLC` returns, without the sender and numbers.
-    ///
-    /// Use a campaign's `id` to change it with `PATCH /v3/channels/sms/compliances/US/TEN_DLC/campaigns/{campaignId}`, or to add numbers to it with `POST /v3/channels/sms/numbers/US/TEN_DLC`.
-    ///
-    /// Send `x-profile-id` with an organization key to read one of your profiles' markets.
-    ///
-    /// `GET /v3/channels/sms/compliances/US/TEN_DLC`
-    /// # Errors
-    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn brands_campaigns_get_market_compliance(&self) -> Result<SuppliedCompliance> {
-        self.client
-            .send(
-                Method::GET,
-                "/v3/channels/sms/compliances/US/TEN_DLC",
-                &NoQuery {},
-                None::<&()>,
-            )
-            .await
-    }
-
-    /// Change a campaign on the US 10DLC market
-    ///
-    /// Changes **one campaign of your own** on the US `TEN_DLC` market, named by its `id` in the market's `compliance.campaigns`.
-    ///
-    /// ## What to send
-    ///
-    /// The fields to change, at the top level of the body, under the `compliance.campaign.*` keys `GET /v3/compliance/requirements?country=US&type=TEN_DLC` lists, without that prefix. A field you leave out keeps its value, and a rejected one is keyed by its name. `id` and `"inherit": false` are ignored, so an entry of `compliance.campaigns` can be sent as read; `"inherit": true` is `400`, because this call changes a campaign's fields, not whose campaign you run on. The campaign only: add numbers with `POST /v3/channels/sms/numbers/US/TEN_DLC`, and change the brand or documents with `PATCH /v3/channels/sms/US/TEN_DLC`.
-    ///
-    /// ## When it can be changed
-    ///
-    /// Until it is filed with The Campaign Registry, and again when we ask you to correct it. That correction sends it back for review. A filed campaign is otherwise `409`, and so is a change between low and high volume once it is registered. A campaign you run on from your organization is `409` too: it is the organization's to change. So is one out of service: expired, deactivated or released.
-    ///
-    /// Returns **the market**, in the shape `GET /v3/channels/sms/US/TEN_DLC` returns.
-    ///
-    /// `PATCH /v3/channels/sms/compliances/US/TEN_DLC/campaigns/{campaignId}`
-    /// # Errors
-    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn brands_campaigns_patch_market_campaign(
-        &self,
-        campaign_id: &str,
-        request: &PatchMarketCampaignRequest,
-    ) -> Result<SmsMarket> {
-        self.client
-            .send(
-                Method::PATCH,
-                &format!(
-                    "/v3/channels/sms/compliances/US/TEN_DLC/campaigns/{}",
-                    crate::client::encode(campaign_id)
-                ),
-                &NoQuery {},
-                Some(request),
-            )
-            .await
-    }
 }
 
 /// The `channels.sms` resource: `client.channels().sms()`.
@@ -207,6 +81,14 @@ pub struct Sms<'a> {
 }
 
 impl<'a> Sms<'a> {
+    /// The `ten_dlc` sub-resource.
+    #[must_use]
+    pub fn ten_dlc(&self) -> TenDlc<'a> {
+        TenDlc {
+            client: self.client,
+        }
+    }
+
     /// Add an SMS market — a country and sender type
     ///
     /// Gives the customer a sender in one country — the first market it sends in, and the fifth.
@@ -402,6 +284,134 @@ impl<'a> Sms<'a> {
                     crate::client::encode(country),
                     crate::client::encode(type_)
                 ),
+                &NoQuery {},
+                Some(request),
+            )
+            .await
+    }
+}
+
+/// The `channels.sms.ten_dlc` resource: `client.channels().sms().ten_dlc()`.
+#[derive(Debug, Clone, Copy)]
+pub struct TenDlc<'a> {
+    pub(crate) client: &'a Client,
+}
+
+impl<'a> TenDlc<'a> {
+    /// Get the compliance of the US 10DLC market
+    ///
+    /// Reads what the US `TEN_DLC` market you hold has registered: the `brand` it files under, **every campaign** under `campaigns` (each with its `id` and `inherit`), and its `documents`. It is the `compliance` object `GET /v3/channels/sms/US/TEN_DLC` returns, without the sender and numbers.
+    ///
+    /// Use a campaign's `id` to change it with `PATCH /v3/channels/sms/compliances/US/TEN_DLC/campaigns/{campaignId}`, or to add numbers to it with `POST /v3/channels/sms/numbers/US/TEN_DLC`.
+    ///
+    /// Send `x-profile-id` with an organization key to read one of your profiles' markets.
+    ///
+    /// `GET /v3/channels/sms/compliances/US/TEN_DLC`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn retrieve_compliance(&self) -> Result<SuppliedCompliance> {
+        self.client
+            .send(
+                Method::GET,
+                "/v3/channels/sms/compliances/US/TEN_DLC",
+                &NoQuery {},
+                None::<&()>,
+            )
+            .await
+    }
+
+    /// Add a campaign to the US 10DLC market
+    ///
+    /// Registers **a new campaign** on the US `TEN_DLC` market you already hold — the one market that registers campaigns. Use it when you want numbers for a different use case than the market's existing campaign covers. The campaign is filed under the brand the market files under — your organization's when you inherit its identity.
+    ///
+    /// ## What to send
+    ///
+    /// The new campaign's fields, at the top level of the body: use cases, consent narrative, volume, sample messages and keywords, under the `compliance.campaign.*` keys `GET /v3/compliance/requirements?country=US&type=TEN_DLC` lists, without that prefix. It has to be complete. A rejected field is keyed by its name (`description`). `id` and `inherit` are ignored, so an entry of `compliance.campaigns` can be sent as read.
+    ///
+    /// The identity is the market's and is not sent here. A market whose identity has no registration yet, or one not yet submitted for review, is `400`.
+    ///
+    /// ## What happens
+    ///
+    /// The campaign is recorded and goes for review; it is not filed with The Campaign Registry by this call. **It comes without numbers**: send its `id` from `compliance.campaigns` to `POST /v3/channels/sms/numbers/US/TEN_DLC` to give it some. **The campaign you already have, and its numbers, are not touched** — including a campaign you run on from your organization.
+    ///
+    /// **Each call files a new campaign**, which is charged when it is submitted. Send an `Idempotency-Key` so a retried request does not file a second one.
+    ///
+    /// To change the campaign a market already has, use `PATCH /v3/channels/sms/US/TEN_DLC`. Once a market holds more than one campaign, that `PATCH` refuses a campaign or numbers change (`409`) rather than guess which campaign is meant; numbers are added to a named campaign with `POST /v3/channels/sms/numbers/US/TEN_DLC`.
+    ///
+    /// Returns **the market**, in the shape `GET /v3/channels/sms/US/TEN_DLC` returns, with `202`.
+    ///
+    /// `POST /v3/channels/sms/compliances/US/TEN_DLC/campaigns`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn add_campaign(&self, request: &AddBrandCampaignRequest) -> Result<SmsMarket> {
+        self.client
+            .send(
+                Method::POST,
+                "/v3/channels/sms/compliances/US/TEN_DLC/campaigns",
+                &NoQuery {},
+                Some(request),
+            )
+            .await
+    }
+
+    /// Change a campaign on the US 10DLC market
+    ///
+    /// Changes **one campaign of your own** on the US `TEN_DLC` market, named by its `id` in the market's `compliance.campaigns`.
+    ///
+    /// ## What to send
+    ///
+    /// The fields to change, at the top level of the body, under the `compliance.campaign.*` keys `GET /v3/compliance/requirements?country=US&type=TEN_DLC` lists, without that prefix. A field you leave out keeps its value, and a rejected one is keyed by its name. `id` and `"inherit": false` are ignored, so an entry of `compliance.campaigns` can be sent as read; `"inherit": true` is `400`, because this call changes a campaign's fields, not whose campaign you run on. The campaign only: add numbers with `POST /v3/channels/sms/numbers/US/TEN_DLC`, and change the brand or documents with `PATCH /v3/channels/sms/US/TEN_DLC`.
+    ///
+    /// ## When it can be changed
+    ///
+    /// Until it is filed with The Campaign Registry, and again when we ask you to correct it. That correction sends it back for review. A filed campaign is otherwise `409`, and so is a change between low and high volume once it is registered. A campaign you run on from your organization is `409` too: it is the organization's to change. So is one out of service: expired, deactivated or released.
+    ///
+    /// Returns **the market**, in the shape `GET /v3/channels/sms/US/TEN_DLC` returns.
+    ///
+    /// `PATCH /v3/channels/sms/compliances/US/TEN_DLC/campaigns/{campaignId}`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn update_campaign(
+        &self,
+        campaign_id: &str,
+        request: &PatchMarketCampaignRequest,
+    ) -> Result<SmsMarket> {
+        self.client
+            .send(
+                Method::PATCH,
+                &format!(
+                    "/v3/channels/sms/compliances/US/TEN_DLC/campaigns/{}",
+                    crate::client::encode(campaign_id)
+                ),
+                &NoQuery {},
+                Some(request),
+            )
+            .await
+    }
+
+    /// Add numbers to a campaign on the US 10DLC market
+    ///
+    /// Adds numbers to **one campaign of your own** on the US `TEN_DLC` market you hold, named by `campaign_id` — the `id` of an entry in the market's `compliance.campaigns`.
+    ///
+    /// ## What to send
+    ///
+    /// - `campaign_id` — the campaign. One you inherit from your organization is `400`: its numbers are the organization's. One out of service — expired, deactivated or released — is `409`.
+    /// - `numbers` — the list `POST /v3/channels/sms` takes, one entry per area code.
+    ///
+    /// ## What happens
+    ///
+    /// The entries are **added** to what the campaign already asks for. With everything it asks for, a campaign holds at most 49 numbers, counting one for each sender profile inheriting it. A campaign the carriers have not approved yet gets its numbers when they do; an approved one gets them now. Until a number is assigned it reads as `PROVISIONING` in the market's `numbers`, with the area code it was asked for.
+    ///
+    /// Returns **the market**, in the shape `GET /v3/channels/sms/US/TEN_DLC` returns, with `202`.
+    ///
+    /// `POST /v3/channels/sms/numbers/US/TEN_DLC`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn add_numbers(&self, request: &AddCampaignNumbersRequest) -> Result<SmsMarket> {
+        self.client
+            .send(
+                Method::POST,
+                "/v3/channels/sms/numbers/US/TEN_DLC",
                 &NoQuery {},
                 Some(request),
             )
