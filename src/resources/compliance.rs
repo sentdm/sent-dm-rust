@@ -8,7 +8,10 @@
     unused_imports
 )]
 
+use std::collections::HashMap;
+
 use serde::Serialize;
+use serde_json::Value;
 
 use crate::client::{Client, Method, NoQuery};
 use crate::error::Result;
@@ -23,6 +26,8 @@ pub struct Compliance<'a> {
 
 impl<'a> Compliance<'a> {
     /// Get compliance requirements for a market
+    ///
+    /// **Deprecated.** Use `GET /v3/channels/{channel}/{country}/compliance` instead, and expect this to be removed in a future release. It answers exactly as before, so nothing needs to change today.
     ///
     /// **Call this first.** It returns what a channel, country and sender type demand before you can send there — and `setup[]`, the calls that satisfy those demands, in order, each with a body you can copy and send as it stands. You never have to track forty countries' rules yourself.
     ///
@@ -68,6 +73,34 @@ impl<'a> Compliance<'a> {
                 Method::GET,
                 "/v3/compliance/requirements",
                 params,
+                None::<&()>,
+            )
+            .await
+    }
+
+    /// List a country's number types
+    ///
+    /// **Call this first.** Every sender type a country offers on a channel: what it carries, the sender id pattern, its fees, its terms and how long it takes to go live, and under `compliance` everything you have to provide to send as it — each value with whether it is required, the `regex` it must match and, for a choice, its `options`, then `documents`, the files it asks for. It describes the market, not your account, so it answers before you hold anything there; what you submitted is `GET /v3/channels/{channel}/{country}/{type}`, and what you hold is `/v3/channels/{channel}/numbers`.
+    ///
+    /// A `regex` uses plain syntax with ASCII `\d` and `\s`, read the same by JavaScript and .NET; in Python compile it with `re.ASCII`. A country that offers nothing on the channel returns an empty `number_types`. `fees` are the per-number fees, in USD; registration fees (a US 10DLC brand, campaign or resubmission) are not listed.
+    ///
+    /// `GET /v3/channels/{channel}/{country}/compliance`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn list_country_number_types(
+        &self,
+        channel: &str,
+        country: &str,
+    ) -> Result<CountryNumberTypesResponse> {
+        self.client
+            .send(
+                Method::GET,
+                &format!(
+                    "/v3/channels/{}/{}/compliance",
+                    crate::client::encode(channel),
+                    crate::client::encode(country)
+                ),
+                &NoQuery {},
                 None::<&()>,
             )
             .await

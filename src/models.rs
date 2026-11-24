@@ -96,8 +96,78 @@ pub struct Account {
     pub profiles: Option<Vec<AccountProfile>>,
 }
 
-/// The same shape as `ChannelsMarketComplianceWriteRequest`.
-pub type AddBrandCampaignRequest = ChannelsMarketComplianceWriteRequest;
+/// The campaign's fields, at the top level. Send an `Idempotency-Key` so a retry does not file a second.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AddBrandCampaignRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sandbox: Option<bool>,
+    /// What this programme sends. TCR description: what recipients will get and why, in a sentence. The only one of these TCR takes verbatim as a description of the programme, which is why it is asked for rather than derived from the customer's name. Required when `compliance.campaign.inherit != true`.
+    pub description: String,
+    /// Consent narrative. TCR messageFlow: how recipients opt in, in prose. Under 40 characters is refused, and carriers reject vague descriptions — say where opt-in happens, that the box is unchecked by default, and that consent is not a condition of purchase. Required when `compliance.campaign.inherit != true`.
+    pub message_flow: String,
+    /// Use cases. What the campaign sends, and an example of each. One to five entries; how they register is decided by volume, never declared. Required when `compliance.campaign.inherit != true`.
+    #[serde(default)]
+    pub use_cases: Vec<AddBrandCampaignRequestUseCasesItem>,
+    /// Opt-in confirmation. TCR optinMessage. Should state message frequency and that rates may apply. Its presence is what sets subscriberOptin. Required when `compliance.campaign.inherit != true`.
+    pub opt_in_message: String,
+    /// Opt-out confirmation. TCR optoutMessage. Its presence is what sets subscriberOptout. Required when `compliance.campaign.inherit != true`.
+    pub opt_out_message: String,
+    /// Help reply. TCR helpMessage. Its presence is what sets subscriberHelp. Required when `compliance.campaign.inherit != true`.
+    pub help_message: String,
+    /// Opt-in keywords. TCR optinKeywords, comma separated, e.g. START,YES. Required when `compliance.campaign.inherit != true`.
+    pub opt_in_keywords: String,
+    /// Opt-out keywords. TCR optoutKeywords, comma separated. STOP, END, CANCEL, UNSUBSCRIBE and QUIT are honoured regardless of what is declared. Required when `compliance.campaign.inherit != true`.
+    pub opt_out_keywords: String,
+    /// Help keywords. TCR helpKeywords, comma separated, e.g. HELP,INFO. Required when `compliance.campaign.inherit != true`.
+    pub help_keywords: String,
+    /// Privacy policy URL. TCR privacyPolicyLink. Required when `compliance.campaign.inherit != true`.
+    pub privacy_policy_link: String,
+    /// Terms and conditions URL. TCR termsAndConditionsLink. Required when `compliance.campaign.inherit != true`.
+    pub terms_and_conditions_link: String,
+    /// Expected monthly volume. Required whenever the campaign's fields are written. A whole number of messages, e.g. 1000 or 10000. Decides how the campaign registers and which fee tier applies: below the low-volume threshold it registers as LOW_VOLUME with sub-use-cases, above it as a single use case or MIXED. Omitting it registers the campaign at the higher-fee standard tier. Required when `compliance.campaign.inherit != true`, whenever its block is written.
+    pub volume: String,
+}
+
+/// The `AddBrandCampaignRequestUseCasesItem` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AddBrandCampaignRequestUseCasesItem {
+    /// Use case. What this entry sends. MIXED and LOW_VOLUME are refused — volume decides those.
+    pub use_case: AddBrandCampaignRequestUseCasesItemUseCase,
+    /// Sample messages. TCR sample1..sample5 for this use case. One to five, each 20 to 1024 characters and carrying the brand name and an opt-out instruction. At most five across the campaign, and at least two when a high-volume campaign has a single use case.
+    #[serde(default)]
+    pub sample_messages: Vec<Value>,
+}
+
+/// Use case. What this entry sends. MIXED and LOW_VOLUME are refused — volume decides those.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum AddBrandCampaignRequestUseCasesItemUseCase {
+    #[default]
+    #[serde(rename = "MARKETING")]
+    Marketing,
+    #[serde(rename = "ACCOUNT_NOTIFICATION")]
+    AccountNotification,
+    #[serde(rename = "CUSTOMER_CARE")]
+    CustomerCare,
+    #[serde(rename = "FRAUD_ALERT")]
+    FraudAlert,
+    #[serde(rename = "2FA")]
+    N2fa,
+    #[serde(rename = "DELIVERY_NOTIFICATION")]
+    DeliveryNotification,
+    #[serde(rename = "SECURITY_ALERT")]
+    SecurityAlert,
+    #[serde(rename = "M2M")]
+    M2m,
+    #[serde(rename = "HIGHER_EDUCATION")]
+    HigherEducation,
+    #[serde(rename = "POLLING_VOTING")]
+    PollingVoting,
+    #[serde(rename = "PUBLIC_SERVICE_ANNOUNCEMENT")]
+    PublicServiceAnnouncement,
+    /// A value this version does not list; Sent may add values.
+    #[serde(untagged)]
+    Other(String),
+}
 
 /// The `AddCallParticipantRequest` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -113,22 +183,8 @@ pub struct AddCallParticipantRequest {
     pub caller_id: Option<String>,
 }
 
-/// The `AddCampaignNumbersRequest` object.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct AddCampaignNumbersRequest {
-    /// Sandbox flag - when true, the operation is simulated without side effects
-    /// Useful for testing integrations without actual execution
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sandbox: Option<bool>,
-    /// The campaign to add the numbers to, as compliance.campaigns[].id reports it. Required.
-    pub campaign_id: String,
-    /// The numbers to add, one entry per area code, e.g. [{"area_code": "415", "quantity": 2}, {"quantity": 1}].
-    /// quantity defaults to 1, and an entry without area_code means any area code. Required.
-    ///
-    /// Added to what the campaign already asks for, never replacing it.
-    #[serde(default)]
-    pub numbers: Vec<SmsNumberRequest>,
-}
+/// The same shape as `MarketNumbersRequest`.
+pub type AddMarketNumbersRequest = MarketNumbersRequest;
 
 /// The `AddRcsChannelRequest` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -208,8 +264,6 @@ pub struct AddSmsChannelRequest {
     /// Useful for testing integrations without actual execution
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sandbox: Option<bool>,
-    /// ISO 3166-1 alpha-2 country the sender operates in.
-    pub country: String,
     /// Sender type. Decides the provisioning flow and what compliance is asked for.
     ///
     /// [Required] so the published document says so. The validator has always demanded it, but
@@ -345,6 +399,362 @@ pub struct AddWhatsappChannelRequest {
     /// behalf.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub phone_number_id: Option<String>,
+}
+
+/// One thing the account still needs before it can run agents.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentAccountItemResponse {
+    /// kyc, billing_card or billing_auto_charge.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// What to do, in words.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    /// Whose it is to do: this_account, or organization for a sender profile whose organization does it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<String>,
+    /// Where in the Sent Dashboard it is done.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+}
+
+/// The same shape as `AgentMutationRequest`.
+pub type AgentActionRequest = AgentMutationRequest;
+
+/// Where Sent stands in writing an agent's definition.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentComposerResponse {
+    /// working: still writing, read the agent again shortly. waiting: it asked the questions; answer
+    /// with a message. blocked: it is done for now and the definition still lacks the open_items.
+    /// done: the definition can be activated. failed or cancelled: send a message to go on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub questions: Option<Vec<AgentQuestionResponse>>,
+    /// Set only when the state is failed: budget_reached, limit_reached, stopped or failed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    /// The Composer's last words: what it did, what it plans and what it needs. Null before it has said anything.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+/// The limits an agent works under. Two are gone, and a request that still sends one has the rest forwarded
+/// without it: max_concurrent_instances, which nothing ever enforced, and
+/// max_msgs_per_contact_per_day, since how much an agent says to a contact is its model's to judge.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentGuardrailsPayload {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llm_budget_usd_per_day: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_consecutive_unanswered: Option<i32>,
+}
+
+/// One instance to start: the contact the agent works, and what it is told about the contact.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentInstanceRequest {
+    /// A contact of the agent's profile. Contacts are made with POST /v3/contacts; this never makes one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contact_id: Option<String>,
+    /// Free-form context the agent sees for this contact (name, appointment, order).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<SystemTextJsonJsonElement>,
+}
+
+/// The `AgentLifetimePayload` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentLifetimePayload {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ends_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reply_window_days: Option<i32>,
+}
+
+/// The `AgentListResponse` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentListResponse {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub items: Option<Vec<AgentResponse>>,
+}
+
+/// One of an agent's models: the one that decides and writes with each contact (model), or its orchestrator.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentModelPayload {
+    /// anthropic, openai or openrouter.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// Whose key pays for the model: sent (Sent's, the default) or agent, the agent's own key for the provider (provider_keys). An OpenRouter model runs only on the agent's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key_source: Option<String>,
+}
+
+/// The same shape as `EmptyRequest`.
+pub type AgentMutationRequest = EmptyRequest;
+
+/// One thing a definition still lacks.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentOpenItemResponse {
+    /// The field of the definition, as a path (for example channels.sender_number_ids).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub field: Option<String>,
+    /// What is missing, in words.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+}
+
+/// Whether the calling account can run agents, and what it still needs.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentPrerequisitesResponse {
+    /// True when nothing is missing: an agent on this account can be deployed, activated and resumed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ready: Option<bool>,
+    /// What the account still needs, as each agent's account_items lists it. Empty when ready.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_items: Option<Vec<AgentAccountItemResponse>>,
+}
+
+/// A question Sent needs answered to go on writing the definition. Answer in words, with a message.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentQuestionResponse {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// text, choice (one of options), sent_number, contacts, connection,
+    /// deploy, or account (finish what account_items lists, then say so).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub options: Option<Vec<String>>,
+    /// What Sent set or found in the turn that ended with this question, to read above it. Null when it said nothing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// For a choice that asks a yes to an act heavier than a write (sending, spending, filing, deleting): the
+    /// Sent tool Sent would call, such as messages.send. Only a person in the Sent Dashboard can approve it, by
+    /// answering act_yes; a message sent through the API does not. Null for any other question.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub act: Option<String>,
+    /// The arguments that tool would be called with, exactly. Null when act is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub act_arguments: Option<SystemTextJsonJsonElement>,
+    /// The one of options that approves the act. Null when act is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub act_yes: Option<String>,
+}
+
+/// The `AgentResponse` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentResponse {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub organization_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// The emoji the agent is listed with; null when it has none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_version: Option<i32>,
+    /// The spec version the agent service holds after this call; null on reads that did not write one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<i32>,
+    /// What the agent's latest version is called, on a read that fetched the summary; null otherwise, and for a version made before versions had labels. Every version is in GET /v3/agents/{id}/versions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_label: Option<String>,
+    /// The agent service's own view (counts, usage, versions), when the read fetched it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary: Option<SystemTextJsonJsonElement>,
+    /// The voice agent the agent answers calls as (agent_…, the id voice numbers are bound to), null when it has no voice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voice_agent_id: Option<String>,
+    /// The agent as it is defined: its basics, channels, models, skills, connections and webhooks. Null when none is on file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub definition: Option<SystemTextJsonJsonElement>,
+    /// What the definition still lacks before the agent can be activated. Empty when nothing is missing; null when no definition is on file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub open_items: Option<Vec<AgentOpenItemResponse>>,
+    /// What the account still needs before it can run agents: kyc, billing_card or
+    /// billing_auto_charge, each with whose it is to do and where. Deploying, activating and resuming are refused
+    /// with BUSINESS_034 until it is empty. Empty when nothing is missing; null when it could not be checked,
+    /// or on an answer that does not carry the definition.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_items: Option<Vec<AgentAccountItemResponse>>,
+    /// Whether the agent can be deployed now: its definition lacks nothing (open_items) and neither does the account (account_items).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployable: Option<bool>,
+    /// Where Sent stands in writing the definition from a goal or a message. Null for an agent that was only ever given a spec.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub composer: Option<AgentComposerResponse>,
+}
+
+/// The `AgentSpecRequest` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentSpecRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instructions: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<AgentModelPayload>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channels: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sender_number_ids: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lifetime: Option<AgentLifetimePayload>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guardrails: Option<AgentGuardrailsPayload>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voice: Option<SystemTextJsonJsonElement>,
+    /// Who opens the conversation: reactive (the agent answers whoever writes or calls its numbers and never reaches out first) or proactive (it reaches out to each contact it is given).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+    /// auto (the agent acts on each decision), confirm (it waits for each decision to message or to call a contact to be confirmed, see /v3/agents/{id}/decisions), confirm_messages (only each decision to message waits) or confirm_calls (only each decision to call waits).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decisions: Option<String>,
+    /// Whether the agent gets a number itself in a country where the context has none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub numbers_on_demand: Option<bool>,
+    /// Whether the agent writes the templates it needs itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub templates_on_demand: Option<bool>,
+    /// The countries the agent is set up for ahead of its contacts, as ISO 3166-1 alpha-2 codes: GB, not UK. A code that is not a country's is refused with 422.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub markets: Option<Vec<String>>,
+    /// The agent's orchestrator, the model that plans for the whole agent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orchestrator: Option<AgentModelPayload>,
+    /// The voice model and voice for the agent's calls.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voice_model: Option<AgentVoiceModelPayload>,
+    /// One emoji the agent is listed with. An empty string takes it away. Not part of a version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    /// What the version this request makes is called, at most 80 characters. Left out, the version says what changed since the one before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_label: Option<String>,
+}
+
+/// One version of an agent: what a deploy, or a change to its spec, made.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentVersionResponse {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<i32>,
+    /// What the version is called: the words Sent wrote for the change it made, the version_label its maker
+    /// sent, or what changed since the version before. Null for a version made before versions had labels.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    /// Whether this is the version the agent runs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active: Option<bool>,
+}
+
+/// An agent's versions, the newest first.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentVersionsResponse {
+    /// The version the agent runs; null for an agent that was never set live.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_version: Option<i32>,
+    /// The newest version; 0 for an agent with none yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latest_version: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub versions: Option<Vec<AgentVersionResponse>>,
+}
+
+/// The voice model and voice picked for an agent's calls. An OpenAI Realtime model (gpt-realtime-2.1, gpt-realtime-2.1-mini), an OpenAI Live model (gpt-live-1.1, gpt-live-1), one of ElevenLabs' speech to speech models (eleven_realtime_v1_mini, eleven_realtime_v1_max) or one of Google's Gemini Live models (gemini-3.8-live, gemini-3.8-live-extended-thinking) hears and speaks the calls itself, in that voice. Any other pick is kept as the choice, and those calls are spoken by Sent's standard speech.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentVoiceModelPayload {
+    /// openai, elevenlabs or google.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// The voice of that model: a name (OpenAI, Google) or a voice id (ElevenLabs).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voice: Option<String>,
+    /// sent (the default) or agent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key_source: Option<String>,
+}
+
+/// Body of an agent.* webhook (Sent Agents). The event is the agent service's own record,
+/// forwarded without renaming: EventId is its id, so a subscriber can dedupe a redelivery.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentEventPayload {
+    /// The agent service's event id. The same event is never delivered under two ids.
+    pub event_id: String,
+    /// The sender profile the agent runs on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_id: Option<String>,
+    /// Where the event stands among the agent's events: a number that grows with each, so two events of the same
+    /// second are put in order by it. Not a count: there are gaps between an agent's own. Absent from an agent
+    /// service that does not say it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sequence: Option<i64>,
+    /// The agent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
+    /// The agent's name, as it is listed. Absent for an agent services no longer holds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_name: Option<String>,
+    /// The version of the agent the event is of: the one its conversation runs, or the active one for an event of
+    /// the agent itself. Absent when the agent service does not say it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_version: Option<i32>,
+    /// The conversation (agent × contact) the event belongs to; absent on agent-level events.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instance_id: Option<String>,
+    /// The contact of that conversation; absent on agent-level events.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contact_id: Option<String>,
+    /// The contact's phone number, in E.164, so a receiver knows who the event is about without asking for the
+    /// contact. Read from the account's contacts as the webhook is built: the agent service's own record names a
+    /// contact by id only. Absent on agent-level events, and for a contact the account no longer holds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contact_phone_number: Option<String>,
+    /// Who caused it: system, the agent service's customer, or an approver.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub actor: Option<String>,
+    /// When the agent service recorded it, UTC, to the millisecond.
+    pub occurred_at: String,
+    /// The event's own fields (outcome, reason, ...), exactly as the agent service recorded them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub data: Option<SystemTextJsonJsonElement>,
+}
+
+/// An instance and the contact it works, with the contact's number.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentsAgentStartedInstance {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instance_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contact_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phone_number: Option<String>,
+}
+
+/// What starting instances did: the ones made now, and the contacts that already had an open instance of the
+/// agent. The public API and the dashboard both answer this as it is, so the two cannot drift.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentsAgentStartedInstances {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created: Option<Vec<AgentsAgentStartedInstance>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub existing: Option<Vec<AgentsAgentStartedInstance>>,
 }
 
 /// Billing contact information for a profile.
@@ -1214,6 +1624,10 @@ pub struct CancelledMessage {
     pub phone_international: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub region_code: Option<String>,
+    /// When this message is another send of a message you sent earlier, the id of that original message; null for
+    /// every other message. Always the first message, however many sends lie between them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_message_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub template_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1253,6 +1667,87 @@ pub struct CancelledMessage {
     ///             message that carried no recorded instant.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scheduled_at: Option<String>,
+}
+
+/// One market the profile sends in on a channel — its sender, where that sender stands, and what the market wants.
+/// Named for no one channel, as the routes it answers are not (/v3/channels/{channel}/{country}/{type}); SMS is
+/// the channel with markets today.
+///
+/// A profile may send in several: it is a tenant, not a market. Each carries its own status, because
+/// a profile can be live in one country and mid-registration in another — and each carries what it still owes,
+/// rather than that being reported in a separate array a caller has to join on.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct ChannelMarket {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub number_type: Option<String>,
+    /// Every number this market holds or is still owed, each with its area code and its own status
+    /// (ACTIVE once it can send, PROVISIONING while it is still to be assigned, INACTIVE once
+    /// it could send and no longer can). One entry for a
+    /// market holding one number. US 10DLC numbers are assigned when the campaign is approved, so they read as
+    /// owed until then. Read-only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub numbers: Option<Vec<SmsNumber>>,
+    /// Where this market's sender stands, in terms of who is holding it up — PROVISIONING,
+    /// ACTION_NEEDED, PENDING_REVIEW or ACTIVE. Read-only.
+    ///
+    /// Resolved rather than reported raw: a live sender reads ACTIVE whatever it still owes, a
+    /// market with outstanding requirements or an open resubmission request reads ACTION_NEEDED, and a
+    /// market that registers with a regime reads PENDING_REVIEW once its brand exists — filing to The
+    /// Campaign Registry is ours to do and need not have happened yet, so a dedicated brand created through
+    /// this API reads PENDING_REVIEW from the moment it is stored.
+    ///
+    /// Describes whether the market can send, not each number: a market holding several numbers reads
+    /// ACTIVE as soon as one of them is, whatever the others are doing. Each number's own status is in
+    /// numbers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<ChannelMarketStateStatus>,
+    /// Why the market is not ACTIVE, as a stable code: an ErrorCodes CHANNEL_xxx value such
+    /// as CHANNEL_001 (something you owe) or CHANNEL_009 (under review). Switch on this rather than
+    /// on reason. Omitted while ACTIVE. Read-only; when nothing more specific is known it is the
+    /// generic reason for the status.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason_code: Option<String>,
+    /// A sentence for reason_code: this market's own explanation, naming what is outstanding where that
+    /// is you. Omitted while ACTIVE.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    /// What this market has been given. Present on a list read for markets that register (brand and campaign
+    /// included, documents absent); fully populated on a single-profile read. Null only when the market
+    /// registers with nobody and no compliance data was computed — nothing to show.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compliance: Option<SuppliedCompliance>,
+}
+
+/// Where this market's sender stands, in terms of who is holding it up — PROVISIONING,
+/// ACTION_NEEDED, PENDING_REVIEW or ACTIVE. Read-only.
+///
+/// Resolved rather than reported raw: a live sender reads ACTIVE whatever it still owes, a
+/// market with outstanding requirements or an open resubmission request reads ACTION_NEEDED, and a
+/// market that registers with a regime reads PENDING_REVIEW once its brand exists — filing to The
+/// Campaign Registry is ours to do and need not have happened yet, so a dedicated brand created through
+/// this API reads PENDING_REVIEW from the moment it is stored.
+///
+/// Describes whether the market can send, not each number: a market holding several numbers reads
+/// ACTIVE as soon as one of them is, whatever the others are doing. Each number's own status is in
+/// numbers.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum ChannelMarketStateStatus {
+    #[default]
+    #[serde(rename = "PROVISIONING")]
+    Provisioning,
+    #[serde(rename = "ACTION_NEEDED")]
+    ActionNeeded,
+    #[serde(rename = "PENDING_REVIEW")]
+    PendingReview,
+    #[serde(rename = "ACTIVE")]
+    Active,
+    #[serde(rename = "INACTIVE")]
+    Inactive,
+    /// A value this version does not list; Sent may add values.
+    #[serde(untagged)]
+    Other(String),
 }
 
 /// The `ChannelScore` object.
@@ -1366,9 +1861,22 @@ pub struct ChannelEventPayload {
     pub updated_at: Option<String>,
 }
 
+/// The same shape as `EmptyRequest`.
+pub type ChannelsMarketChannelRequest = EmptyRequest;
+
 /// The `ChannelsMarketComplianceWriteRequest` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct ChannelsMarketComplianceWriteRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sandbox: Option<bool>,
+}
+
+/// The same shape as `EmptyRequest`.
+pub type ChannelsMarketGetMarketNumbersRequest = EmptyRequest;
+
+/// The `ChannelsMarketMarketComplianceWriteRequest` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct ChannelsMarketMarketComplianceWriteRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sandbox: Option<bool>,
     /// What this market registers with. Its members are declared by the market itself — call `GET /v3/compliance/requirements?country=&type=` for the authoritative set.
@@ -1378,11 +1886,8 @@ pub struct ChannelsMarketComplianceWriteRequest {
     pub compliance: Option<MarketCompliance>,
 }
 
-/// The same shape as `ChannelsMarketComplianceWriteRequest`.
-pub type ChannelsMarketMarketComplianceWriteRequest = ChannelsMarketComplianceWriteRequest;
-
-/// The same shape as `EmptyRequest`.
-pub type ChannelsMarketMarketRequest = EmptyRequest;
+/// The same shape as `ChannelsMarketChannelRequest`.
+pub type ChannelsMarketMarketRequest = ChannelsMarketChannelRequest;
 
 /// Messaging channel configuration. All three channels are always present.
 /// Each channel has a "configured" flag; configured channels expose additional details.
@@ -1427,6 +1932,9 @@ pub struct ComplianceAttachmentTemplate {
     pub required: Option<bool>,
 }
 
+/// The same shape as `EmptyRequest`.
+pub type ComplianceGetCountryNumberTypesRequest = EmptyRequest;
+
 /// One value a market expects in a channel call's compliance map.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct ComplianceRequirement {
@@ -1456,6 +1964,12 @@ pub struct ComplianceRequirement {
     /// characters, and finding that out at submission time is the round trip this exists to save.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_length: Option<i32>,
+    /// Longest acceptable value, where the market caps it. On a list of strings, each item's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_length: Option<i32>,
+    /// Fewest entries this value accepts, where the market sets a minimum.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_items: Option<i32>,
     /// Most entries this value accepts, where the market caps it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_items: Option<i32>,
@@ -1758,6 +2272,115 @@ pub struct ConversationMessagesList {
     pub pagination: Option<PaginationMeta>,
 }
 
+/// One number the customer holds, or is still owed.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct MarketNumber {
+    /// The market's sender type, e.g. TEN_DLC, LOCAL.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<String>,
+    /// The number, or the sender id; null until it is assigned.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sender_value: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub area_code: Option<String>,
+    /// ACTIVE, PROVISIONING or INACTIVE.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    /// The campaign the number belongs to (US TEN_DLC); null otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub campaign_id: Option<String>,
+}
+
+/// The number types of a country on a channel: GET /v3/channels/{channel}/{country}/compliance. Every sender type the
+/// country offers, each with what it demands and what it is. The same for every customer: it describes the market,
+/// not anything the caller holds.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct CountryNumberTypesResponse {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel: Option<String>,
+    /// ISO 3166-1 alpha-2, uppercase.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    /// Every sender type the country offers on the channel. Empty, never null, when it offers none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub number_types: Option<Vec<NumberTypeEntry>>,
+}
+
+/// The numbers a customer holds in one market: GET /v3/channels/{channel}/{country}/{type}/numbers.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct MarketNumbers {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel: Option<String>,
+    /// ISO 3166-1 alpha-2, uppercase.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    /// Empty, never null, when the customer holds nothing there.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub numbers: Option<Vec<MarketNumber>>,
+}
+
+/// The `CreateAgentRequest` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct CreateAgentRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instructions: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<AgentModelPayload>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channels: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sender_number_ids: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lifetime: Option<AgentLifetimePayload>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guardrails: Option<AgentGuardrailsPayload>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voice: Option<SystemTextJsonJsonElement>,
+    /// Who opens the conversation: reactive (the agent answers whoever writes or calls its numbers and never reaches out first) or proactive (it reaches out to each contact it is given).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+    /// auto (the agent acts on each decision), confirm (it waits for each decision to message or to call a contact to be confirmed, see /v3/agents/{id}/decisions), confirm_messages (only each decision to message waits) or confirm_calls (only each decision to call waits).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decisions: Option<String>,
+    /// Whether the agent gets a number itself in a country where the context has none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub numbers_on_demand: Option<bool>,
+    /// Whether the agent writes the templates it needs itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub templates_on_demand: Option<bool>,
+    /// The countries the agent is set up for ahead of its contacts, as ISO 3166-1 alpha-2 codes: GB, not UK. A code that is not a country's is refused with 422.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub markets: Option<Vec<String>>,
+    /// The agent's orchestrator, the model that plans for the whole agent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orchestrator: Option<AgentModelPayload>,
+    /// The voice model and voice for the agent's calls.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voice_model: Option<AgentVoiceModelPayload>,
+    /// One emoji the agent is listed with. An empty string takes it away. Not part of a version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    /// What the version this request makes is called, at most 80 characters. Left out, the version says what changed since the one before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_label: Option<String>,
+    /// What the agent should do, in the caller's own words. With a goal, Sent writes the agent's definition: the
+    /// name, the instructions and the senders are worked out from it and from the account. The name, model,
+    /// channels, sender numbers, lifetime, guardrails and voice sent with it are kept; instructions and tools are
+    /// not taken with a goal, because Sent writes them. Without a goal, the request is the agent's spec and
+    /// name is required.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub goal: Option<String>,
+    /// The agent's own model provider keys, by provider (openai, anthropic, openrouter,
+    /// elevenlabs, google), for the models picked with key_source: agent. Each is checked with its provider
+    /// and kept sealed; none is ever answered back.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_keys: Option<HashMap<String, String>>,
+}
+
 /// The `CreateBrandCampaignRequest` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct CreateBrandCampaignRequest {
@@ -2026,7 +2649,26 @@ pub struct CreateWebhookV3Request {
     /// organization's own events only. Only an organization's version 2 webhook can set it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub is_inheritable: Option<bool>,
+    /// One of your Sent agents: the webhook then receives only that agent's events, its agent events and the
+    /// messages it sent or received, and is never inheritable: is_inheritable set with it is refused. Only the account
+    /// the agent runs on can set it, and only on a version 2 webhook.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
 }
+
+/// The `DecideAgentDecisionRequest` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct DecideAgentDecisionRequest {
+    /// confirmed or rejected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    /// Why, kept with the answer; at most 1000 characters.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// The same shape as `AgentMutationRequest`.
+pub type DeleteAgentRequest = AgentMutationRequest;
 
 /// The same shape as `MutationRequest`.
 pub type DeleteBrandCampaignRequest = MutationRequest;
@@ -2730,6 +3372,15 @@ pub enum TcrVertical {
 }
 
 /// The same shape as `EmptyRequest`.
+pub type GetAgentDecisionRequest = EmptyRequest;
+
+/// The same shape as `EmptyRequest`.
+pub type GetAgentInstanceRequest = EmptyRequest;
+
+/// The same shape as `EmptyRequest`.
+pub type GetAgentRequest = EmptyRequest;
+
+/// The same shape as `EmptyRequest`.
 pub type GetBrandCampaignsRequest = EmptyRequest;
 
 /// The same shape as `EmptyRequest`.
@@ -2878,6 +3529,13 @@ pub struct InboundMessageEventPayload {
     /// as optional.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub referral: Option<SystemTextJsonJsonElement>,
+    /// The Sent agent whose conversation this reply arrived in, when the contact is in one, as on the messages it sent.
+    /// Absent otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sent_agent_id: Option<String>,
+    /// The conversation (agent × contact) the reply belongs to, when it belongs to one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sent_instance_id: Option<String>,
     /// When the message was received, in UTC (yyyy-MM-ddTHH:mm:ssZ).
     pub received_at: String,
 }
@@ -3012,6 +3670,18 @@ pub struct LinkEventPayload {
     pub access_outcome: Option<String>,
 }
 
+/// The same shape as `EmptyRequest`.
+pub type ListAgentDecisionsRequest = EmptyRequest;
+
+/// The same shape as `EmptyRequest`.
+pub type ListAgentInstanceEventsRequest = EmptyRequest;
+
+/// The same shape as `EmptyRequest`.
+pub type ListAgentInstancesRequest = EmptyRequest;
+
+/// The same shape as `EmptyRequest`.
+pub type ListAgentVersionsRequest = EmptyRequest;
+
 /// The compliance values a market registers with. `brand` and `campaign` apply to US `TEN_DLC`; other markets fill this map with the document keys their own requirements name.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct MarketCompliance {
@@ -3056,13 +3726,13 @@ pub struct MarketComplianceBrand {
     /// State or region. TCR state. Two letters for a US registration. Required when `compliance.brand.inherit != true`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
-    /// Postal code. Required when `compliance.brand.inherit != true`.
+    /// Postal code. Five digits for a US registration. Required when `compliance.brand.inherit != true`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<String>,
     /// Country of registration. Two letters — US. The country spelled out in full is accepted too and stored as its code, which is what a read answers with and what is filed. Required when `compliance.brand.inherit != true`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
-    /// Website. TCR website. Optional, and worth sending: carriers weigh it when vetting, so a brand that has one and omits it is vetted on less than it could be.
+    /// Website. TCR website. Required whenever the identity's fields are sent, as the dashboard requires it: carriers weigh it when vetting. Not reported as outstanding on an identity already stored without one, which may be filed and no longer changeable. Required when `compliance.brand.inherit != true`, whenever its block is written.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub website: Option<String>,
     /// Responsible contact. Split into TCR's firstName/lastName on submission. BrandService refuses a blank one, so a missing name is reported here rather than thrown after the profile was written. Required when `compliance.brand.inherit != true`.
@@ -3134,7 +3804,7 @@ pub struct MarketComplianceCampaign {
     /// Terms and conditions URL. TCR termsAndConditionsLink. Required when `compliance.campaign.inherit != true`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub terms_and_conditions_link: Option<String>,
-    /// Expected monthly volume. Decides how the campaign registers and which fee tier applies: below the low-volume threshold it registers as LOW_VOLUME with sub-use-cases, above it as a single use case or MIXED. Omitting it registers the campaign at the higher-fee standard tier.
+    /// Expected monthly volume. Required whenever the campaign's fields are written. A whole number of messages, e.g. 1000 or 10000. Decides how the campaign registers and which fee tier applies: below the low-volume threshold it registers as LOW_VOLUME with sub-use-cases, above it as a single use case or MIXED. Omitting it registers the campaign at the higher-fee standard tier. Required when `compliance.campaign.inherit != true`, whenever its block is written.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub volume: Option<String>,
 }
@@ -3144,7 +3814,7 @@ pub struct MarketComplianceCampaign {
 pub struct MarketComplianceCampaignUseCasesItem {
     /// Use case. What this entry sends. MIXED and LOW_VOLUME are refused — volume decides those.
     pub use_case: MarketComplianceCampaignUseCasesItemUseCase,
-    /// Sample messages. TCR sample1..sample5 for this use case. One to five, each carrying the brand name and an opt-out instruction.
+    /// Sample messages. TCR sample1..sample5 for this use case. One to five, each 20 to 1024 characters and carrying the brand name and an opt-out instruction. At most five across the campaign, and at least two when a high-volume campaign has a single use case.
     #[serde(default)]
     pub sample_messages: Vec<Value>,
 }
@@ -3178,6 +3848,26 @@ pub enum MarketComplianceCampaignUseCasesItemUseCase {
     /// A value this version does not list; Sent may add values.
     #[serde(untagged)]
     Other(String),
+}
+
+/// The `MarketNumbersRequest` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct MarketNumbersRequest {
+    /// Sandbox flag - when true, the operation is simulated without side effects
+    /// Useful for testing integrations without actual execution
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sandbox: Option<bool>,
+    /// The campaign to add the numbers to, as campaigns[].id reports it. Required on SMS US TEN_DLC,
+    /// where every number belongs to a campaign; refused on a market without campaigns.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub campaign_id: Option<String>,
+    /// The numbers, one entry per area code, e.g. [{"area_code": "415", "quantity": 2}, {"quantity": 1}].
+    /// quantity defaults to 1, and an entry without area_code means any area code. Required.
+    ///
+    /// POST adds them to what the market or campaign already asks for; PATCH replaces that list
+    /// with them, and has to cover every number already held, since none is ever released.
+    #[serde(default)]
+    pub numbers: Vec<SmsNumberRequest>,
 }
 
 /// Response for GET /messages/{id}/activities
@@ -3313,6 +4003,10 @@ pub struct Message {
     pub phone_international: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub region_code: Option<String>,
+    /// When this message is another send of a message you sent earlier, the id of that original message; null for
+    /// every other message. Always the first message, however many sends lie between them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_message_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub template_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3364,6 +4058,11 @@ pub struct MessageEventPayload {
     /// use it to correlate them.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message_id: Option<String>,
+    /// When this message is another send of a message you sent earlier, the id of that original message; omitted for
+    /// every other message. The new send has its own message_id, so this ties its events back to the message
+    /// you sent. Always the first message, however many sends lie between them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_message_id: Option<String>,
     /// The template the message was sent from, when it was sent from one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub template_id: Option<String>,
@@ -3377,6 +4076,13 @@ pub struct MessageEventPayload {
     /// The agent attributed to the send, when the send was attributed to one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
+    /// The Sent agent (Sent Agents) that sent this message, when one did. Not the RCS agent_id above:
+    /// that names the RCS sender agent, this names the autonomous agent running on the account.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sent_agent_id: Option<String>,
+    /// The conversation (agent × contact) the message belongs to, when a Sent agent sent it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sent_instance_id: Option<String>,
     /// The status the message just reached, for example SENT, DELIVERED, or
     /// FAILED. Sent means dispatched and delivered means confirmed, so treat them as
     /// distinct outcomes.
@@ -3419,7 +4125,7 @@ pub struct MessageEventPayload {
 
 /// One market the profile can send MMS in.
 ///
-/// Deliberately not SmsMarketState: an MMS market carries no compliance of its own. It
+/// Deliberately not ChannelMarketState: an MMS market carries no compliance of its own. It
 /// is the same number, carrier and registration as the SMS market on it in that country — MMS files nothing
 /// separately — so a compliance block here would always be null and would invite the question of
 /// what an MMS market owes. It owes what the SMS market owes, reported there.
@@ -3462,6 +4168,45 @@ pub struct NumberLookupResult {
     pub is_voip: Option<bool>,
 }
 
+/// One sender type in the country: what it is and costs, the sender id pattern, and under Compliance
+/// everything its compliance asks the caller to provide.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct NumberTypeEntry {
+    /// The sender type, e.g. TEN_DLC, LOCAL, TOLL_FREE.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<String>,
+    /// What a number of this type carries: SMS, MMS, Voice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capabilities: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub two_way: Option<bool>,
+    /// The pattern a sender id you choose must match, for a type whose sender you name (an alphanumeric sender id),
+    /// as the market configures it and POST /v3/channels/sms enforces it. A .NET regex written per market by
+    /// an admin, so not held to the plain syntax of the compliance regexes. Null when the sender is assigned or any
+    /// value is accepted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sender_id_regex: Option<String>,
+    /// The fees per number, in USD: its setup fee and its recurring fee, charged when the number is activated.
+    /// Registration fees (a US 10DLC brand, campaign or resubmission) are not listed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fees: Option<Vec<RequirementFee>>,
+    /// The type's service terms, e.g. MLT and CLT.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terms: Option<Vec<RequirementTimeline>>,
+    /// How long the type takes to go live.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eta: Option<RequirementTimeline>,
+    /// Everything its compliance asks for: each value keyed as the market's brand takes it (compliance.brand on
+    /// POST and PATCH /v3/channels/{channel}/{country}/{type}) to a RequirementRule, then
+    /// documents, the files it asks for (a list of RequirementDocument). Only documents
+    /// when the type registers with nobody and asks for no files, it is an empty list.
+    ///
+    /// documents is reserved here: no compliance value is named that
+    /// (GetCountryNumberTypesEndpointTests).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compliance: Option<HashMap<String, Value>>,
+}
+
 /// The `PatchCallParticipantRequest` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct PatchCallParticipantRequest {
@@ -3473,8 +4218,89 @@ pub struct PatchCallParticipantRequest {
     pub muted: bool,
 }
 
-/// The same shape as `ChannelsMarketComplianceWriteRequest`.
-pub type PatchMarketCampaignRequest = ChannelsMarketComplianceWriteRequest;
+/// The fields to change, at the top level. Partial: a field left out keeps its value.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct PatchMarketCampaignRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sandbox: Option<bool>,
+    /// What this programme sends. TCR description: what recipients will get and why, in a sentence. The only one of these TCR takes verbatim as a description of the programme, which is why it is asked for rather than derived from the customer's name. Required when `compliance.campaign.inherit != true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Consent narrative. TCR messageFlow: how recipients opt in, in prose. Under 40 characters is refused, and carriers reject vague descriptions — say where opt-in happens, that the box is unchecked by default, and that consent is not a condition of purchase. Required when `compliance.campaign.inherit != true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message_flow: Option<String>,
+    /// Use cases. What the campaign sends, and an example of each. One to five entries; how they register is decided by volume, never declared. Required when `compliance.campaign.inherit != true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub use_cases: Option<Vec<PatchMarketCampaignRequestUseCasesItem>>,
+    /// Opt-in confirmation. TCR optinMessage. Should state message frequency and that rates may apply. Its presence is what sets subscriberOptin. Required when `compliance.campaign.inherit != true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opt_in_message: Option<String>,
+    /// Opt-out confirmation. TCR optoutMessage. Its presence is what sets subscriberOptout. Required when `compliance.campaign.inherit != true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opt_out_message: Option<String>,
+    /// Help reply. TCR helpMessage. Its presence is what sets subscriberHelp. Required when `compliance.campaign.inherit != true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help_message: Option<String>,
+    /// Opt-in keywords. TCR optinKeywords, comma separated, e.g. START,YES. Required when `compliance.campaign.inherit != true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opt_in_keywords: Option<String>,
+    /// Opt-out keywords. TCR optoutKeywords, comma separated. STOP, END, CANCEL, UNSUBSCRIBE and QUIT are honoured regardless of what is declared. Required when `compliance.campaign.inherit != true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opt_out_keywords: Option<String>,
+    /// Help keywords. TCR helpKeywords, comma separated, e.g. HELP,INFO. Required when `compliance.campaign.inherit != true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help_keywords: Option<String>,
+    /// Privacy policy URL. TCR privacyPolicyLink. Required when `compliance.campaign.inherit != true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub privacy_policy_link: Option<String>,
+    /// Terms and conditions URL. TCR termsAndConditionsLink. Required when `compliance.campaign.inherit != true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terms_and_conditions_link: Option<String>,
+    /// Expected monthly volume. Required whenever the campaign's fields are written. A whole number of messages, e.g. 1000 or 10000. Decides how the campaign registers and which fee tier applies: below the low-volume threshold it registers as LOW_VOLUME with sub-use-cases, above it as a single use case or MIXED. Omitting it registers the campaign at the higher-fee standard tier. Required when `compliance.campaign.inherit != true`, whenever its block is written.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub volume: Option<String>,
+}
+
+/// The `PatchMarketCampaignRequestUseCasesItem` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct PatchMarketCampaignRequestUseCasesItem {
+    /// Use case. What this entry sends. MIXED and LOW_VOLUME are refused — volume decides those.
+    pub use_case: PatchMarketCampaignRequestUseCasesItemUseCase,
+    /// Sample messages. TCR sample1..sample5 for this use case. One to five, each 20 to 1024 characters and carrying the brand name and an opt-out instruction. At most five across the campaign, and at least two when a high-volume campaign has a single use case.
+    #[serde(default)]
+    pub sample_messages: Vec<Value>,
+}
+
+/// Use case. What this entry sends. MIXED and LOW_VOLUME are refused — volume decides those.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum PatchMarketCampaignRequestUseCasesItemUseCase {
+    #[default]
+    #[serde(rename = "MARKETING")]
+    Marketing,
+    #[serde(rename = "ACCOUNT_NOTIFICATION")]
+    AccountNotification,
+    #[serde(rename = "CUSTOMER_CARE")]
+    CustomerCare,
+    #[serde(rename = "FRAUD_ALERT")]
+    FraudAlert,
+    #[serde(rename = "2FA")]
+    N2fa,
+    #[serde(rename = "DELIVERY_NOTIFICATION")]
+    DeliveryNotification,
+    #[serde(rename = "SECURITY_ALERT")]
+    SecurityAlert,
+    #[serde(rename = "M2M")]
+    M2m,
+    #[serde(rename = "HIGHER_EDUCATION")]
+    HigherEducation,
+    #[serde(rename = "POLLING_VOTING")]
+    PollingVoting,
+    #[serde(rename = "PUBLIC_SERVICE_ANNOUNCEMENT")]
+    PublicServiceAnnouncement,
+    /// A value this version does not list; Sent may add values.
+    #[serde(untagged)]
+    Other(String),
+}
 
 /// The `PatchSenderProfileRequest` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -3960,6 +4786,41 @@ pub type RemoveCallParticipantsRequest = MutationRequest;
 /// The same shape as `MutationRequest`.
 pub type RemoveUserRequest = MutationRequest;
 
+/// The same shape as `MarketNumbersRequest`.
+pub type ReplaceMarketNumbersRequest = MarketNumbersRequest;
+
+/// A fee, in USD.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct RequirementFee {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub amount: Option<f64>,
+    /// ONETIME, or the unit a recurring fee repeats in: DAYS, WEEKS, MONTHS, YEARS.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub period: Option<String>,
+    /// How many Periods between charges; null for a one-time fee.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interval: Option<i32>,
+    /// When the fee is charged: ACTIVATION, when the number is activated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub charge_on: Option<String>,
+}
+
+/// A duration: a typical value and a max_value, in unit.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct RequirementTimeline {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_value: Option<i32>,
+    /// HOURS, DAYS, BUSINESS_DAYS, WEEKS, MONTHS or YEARS.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unit: Option<String>,
+}
+
 /// The same shape as `MutationRequest`.
 pub type ResendMessageV3Request = MutationRequest;
 
@@ -4116,7 +4977,7 @@ pub struct ChannelsState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sms: Option<Vec<SmsMarket>>,
+    pub sms: Option<Vec<ChannelMarket>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub whatsapp: Option<WhatsappChannel>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -4478,85 +5339,6 @@ pub struct AccountSmsChannel {
     pub phone_number: Option<String>,
 }
 
-/// One SMS market the profile sends in — its sender, where that sender stands, and what the market wants.
-///
-/// A profile may send in several: it is a tenant, not a market. Each carries its own status, because
-/// a profile can be live in one country and mid-registration in another — and each carries what it still owes,
-/// rather than that being reported in a separate array a caller has to join on.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct SmsMarket {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub country: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub number_type: Option<String>,
-    /// Every number this market holds or is still owed, each with its area code and its own status
-    /// (ACTIVE once it can send, PROVISIONING while it is still to be assigned, INACTIVE once
-    /// it could send and no longer can). One entry for a
-    /// market holding one number. US 10DLC numbers are assigned when the campaign is approved, so they read as
-    /// owed until then. Read-only.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub numbers: Option<Vec<SmsNumber>>,
-    /// Where this market's sender stands, in terms of who is holding it up — PROVISIONING,
-    /// ACTION_NEEDED, PENDING_REVIEW or ACTIVE. Read-only.
-    ///
-    /// Resolved rather than reported raw: a live sender reads ACTIVE whatever it still owes, a
-    /// market with outstanding requirements or an open resubmission request reads ACTION_NEEDED, and a
-    /// market that registers with a regime reads PENDING_REVIEW once its brand exists — filing to The
-    /// Campaign Registry is ours to do and need not have happened yet, so a dedicated brand created through
-    /// this API reads PENDING_REVIEW from the moment it is stored.
-    ///
-    /// Describes whether the market can send, not each number: a market holding several numbers reads
-    /// ACTIVE as soon as one of them is, whatever the others are doing. Each number's own status is in
-    /// numbers.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub status: Option<SmsMarketStateStatus>,
-    /// Why the market is not ACTIVE, as a stable code: an ErrorCodes CHANNEL_xxx value such
-    /// as CHANNEL_001 (something you owe) or CHANNEL_009 (under review). Switch on this rather than
-    /// on reason. Omitted while ACTIVE. Read-only; when nothing more specific is known it is the
-    /// generic reason for the status.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reason_code: Option<String>,
-    /// A sentence for reason_code: this market's own explanation, naming what is outstanding where that
-    /// is you. Omitted while ACTIVE.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
-    /// What this market has been given. Present on a list read for markets that register (brand and campaign
-    /// included, documents absent); fully populated on a single-profile read. Null only when the market
-    /// registers with nobody and no compliance data was computed — nothing to show.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub compliance: Option<SuppliedCompliance>,
-}
-
-/// Where this market's sender stands, in terms of who is holding it up — PROVISIONING,
-/// ACTION_NEEDED, PENDING_REVIEW or ACTIVE. Read-only.
-///
-/// Resolved rather than reported raw: a live sender reads ACTIVE whatever it still owes, a
-/// market with outstanding requirements or an open resubmission request reads ACTION_NEEDED, and a
-/// market that registers with a regime reads PENDING_REVIEW once its brand exists — filing to The
-/// Campaign Registry is ours to do and need not have happened yet, so a dedicated brand created through
-/// this API reads PENDING_REVIEW from the moment it is stored.
-///
-/// Describes whether the market can send, not each number: a market holding several numbers reads
-/// ACTIVE as soon as one of them is, whatever the others are doing. Each number's own status is in
-/// numbers.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub enum SmsMarketStateStatus {
-    #[default]
-    #[serde(rename = "PROVISIONING")]
-    Provisioning,
-    #[serde(rename = "ACTION_NEEDED")]
-    ActionNeeded,
-    #[serde(rename = "PENDING_REVIEW")]
-    PendingReview,
-    #[serde(rename = "ACTIVE")]
-    Active,
-    #[serde(rename = "INACTIVE")]
-    Inactive,
-    /// A value this version does not list; Sent may add values.
-    #[serde(untagged)]
-    Other(String),
-}
-
 /// One entry of numbers: how many numbers to assign in one area code, or in any area code when
 /// AreaCode is omitted.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -4589,6 +5371,30 @@ pub struct SmsNumber {
     /// without one, or one owed on a campaign inherited from the organization.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub campaign_id: Option<String>,
+}
+
+/// The `StartAgentInstancesRequest` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct StartAgentInstancesRequest {
+    /// Replays return the first answer. Without one, a retry still starts nothing twice: a contact with an open instance of the agent is answered under existing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idempotency_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instances: Option<Vec<AgentInstanceRequest>>,
+}
+
+/// The same shape as `AgentMutationRequest`.
+pub type StopAgentInstanceRequest = AgentMutationRequest;
+
+/// The same shape as `AgentMutationRequest`.
+pub type StopAgentInstancesRequest = AgentMutationRequest;
+
+/// The `StopAgentInstancesResponse` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct StopAgentInstancesResponse {
+    /// How many open instances ended.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ended: Option<i32>,
 }
 
 /// What a market has been given: the identity it registers under, its programme, and any documents attached.
@@ -4637,13 +5443,17 @@ pub struct SuppliedCompliance {
     /// Every campaign this market registers, each with inherit saying whose it is — oldest first.
     ///
     /// A list, because a market can now be on more than one. POST
-    /// /v3/channels/sms/compliances/US/TEN_DLC/campaigns adds a campaign of the customer's own beside the one it has, and a
+    /// /v3/channels/sms/US/TEN_DLC/campaigns adds a campaign of the customer's own beside the one it has, and a
     /// profile running on its organization's campaign keeps that one when it adds its own. Campaign
     /// can only show one of them, so it stays as it was, for callers that read it, and this is where the rest
     /// are.
     ///
     /// The organization's campaign reads "inherit": true and the customer's own read
-    /// "inherit": false. Each entry is the shape of Campaign plus id, the campaign's own
+    /// "inherit": false. Each entry also carries its own status (ACTIVE once the carriers have
+    /// elected it, PENDING_REVIEW until then, ACTION_NEEDED when sent back for correction,
+    /// DECLINED when the carriers refused it, INACTIVE once ended), so a
+    /// market on several says which is approved; why the market is held up stays its own reason, which names
+    /// the campaign concerned. Each entry is the shape of Campaign plus id, the campaign's own
     /// id, so several can be told apart. Campaign carries no id, because it is sent back to
     /// PATCH, which refuses a key it does not declare; this list is read-only.
     ///
@@ -4692,6 +5502,10 @@ pub struct Template {
     /// Template display name
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// The template's slug: a stable, URL-safe name a send can use in place of the id (template.slug on
+    /// POST /v3/messages). Given at creation from the name and never changed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slug: Option<String>,
     /// Template category: MARKETING, UTILITY, AUTHENTICATION
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
@@ -4733,6 +5547,10 @@ pub struct Template {
     /// Template variables for personalization
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub variables: Option<Vec<String>>,
+    /// The template's content per channel, in the shape a create or an update takes, so a caller can
+    /// read what the template says before it sends it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub definition: Option<TemplateDefinition>,
     /// When the template was created
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
@@ -4744,13 +5562,17 @@ pub struct Template {
     pub is_published: Option<bool>,
 }
 
-/// SDK-style template reference: resolve by ID or by name, with optional parameters.
+/// SDK-style template reference: resolve by id, by slug or by name (exactly one), with optional parameters.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct TemplateRef {
-    /// Template ID (mutually exclusive with name)
+    /// Template ID (mutually exclusive with slug and name)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
-    /// Template name (mutually exclusive with id)
+    /// Template slug (mutually exclusive with id and name): the stable name every template on this account carries
+    /// (GET /v3/templates lists them). Compared case-insensitively.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slug: Option<String>,
+    /// Template name (mutually exclusive with id and slug)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /// Template variable parameters for personalization, keyed by variable name.
@@ -4870,6 +5692,60 @@ pub struct ToggleWebhookStatusV3Request {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sandbox: Option<bool>,
     pub is_active: bool,
+}
+
+/// The `UpdateAgentRequest` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct UpdateAgentRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instructions: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<AgentModelPayload>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channels: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sender_number_ids: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lifetime: Option<AgentLifetimePayload>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guardrails: Option<AgentGuardrailsPayload>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voice: Option<SystemTextJsonJsonElement>,
+    /// Who opens the conversation: reactive (the agent answers whoever writes or calls its numbers and never reaches out first) or proactive (it reaches out to each contact it is given).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+    /// auto (the agent acts on each decision), confirm (it waits for each decision to message or to call a contact to be confirmed, see /v3/agents/{id}/decisions), confirm_messages (only each decision to message waits) or confirm_calls (only each decision to call waits).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decisions: Option<String>,
+    /// Whether the agent gets a number itself in a country where the context has none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub numbers_on_demand: Option<bool>,
+    /// Whether the agent writes the templates it needs itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub templates_on_demand: Option<bool>,
+    /// The countries the agent is set up for ahead of its contacts, as ISO 3166-1 alpha-2 codes: GB, not UK. A code that is not a country's is refused with 422.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub markets: Option<Vec<String>>,
+    /// The agent's orchestrator, the model that plans for the whole agent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orchestrator: Option<AgentModelPayload>,
+    /// The voice model and voice for the agent's calls.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voice_model: Option<AgentVoiceModelPayload>,
+    /// One emoji the agent is listed with. An empty string takes it away. Not part of a version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    /// What the version this request makes is called, at most 80 characters. Left out, the version says what changed since the one before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_label: Option<String>,
+    /// What to change, in the caller's own words, or the answer to a question the agent's composer asked.
+    /// With a message, Sent changes the agent's definition and no other field of this request is read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 /// The `UpdateBrandCampaignRequest` object.
@@ -5061,7 +5937,8 @@ pub struct UpdateWebhookV3Request {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeout_seconds: Option<i32>,
     /// Makes this webhook inheritable by the organization's sender profiles (see create), or stops it being
-    /// inheritable. Omit or pass null to keep it as it is. Only a version 2 webhook can be inheritable.
+    /// inheritable. Omit or pass null to keep it as it is. Only a version 2 webhook can be inheritable, and never an
+    /// agent's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub is_inheritable: Option<bool>,
 }
@@ -5479,6 +6356,31 @@ pub struct VoiceAgentTranscriptsSpec {
 /// The envelope Sent POSTs to a subscribed webhook endpoint. Every event shares this shape and
 /// varies only in Payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentEvent {
+    /// The event family, for example message, templates or contact. Route on
+    /// this first, then on event for the specific change.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub field: Option<String>,
+    /// The specific event within the family, for example message.delivered,
+    /// message.received or contact.opt_out. Absent on events that have no subtype, so
+    /// treat it as optional.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event: Option<String>,
+    /// When Sent emitted the event, in UTC (yyyy-MM-ddTHH:mm:ssZ). This is the emission
+    /// time, not the time the underlying change happened. Use the timestamp inside the payload for
+    /// the latter.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<String>,
+    /// The event-specific body.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payload: Option<AgentEventPayload>,
+}
+
+/// The envelope Sent POSTs to a subscribed webhook endpoint. Every event shares this shape and
+/// varies only in Payload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct CallEvent {
     /// The event family, for example message, templates or contact. Route on
     /// this first, then on event for the specific change.
@@ -5753,6 +6655,7 @@ pub enum WebhookEventV3ResponseEventData {
     ContactEvent(ContactEvent),
     LinkEvent(LinkEvent),
     CallEvent(CallEvent),
+    AgentEvent(AgentEvent),
     /// A shape this version does not list.
     Other(Value),
 }
@@ -5832,6 +6735,9 @@ pub struct WebhookResponse {
     /// reads the events about itself. Always false on a version 1 webhook.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub is_inheritable: Option<bool>,
+    /// The Sent agent whose events alone this webhook receives; absent on a webhook of the whole account.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
     /// Who delivers the webhook: 1 the older delivery, which will be retired, or 2 Svix. A webhook is
     /// created as version 2 unless the request asks for 1.
     #[serde(default, skip_serializing_if = "Option::is_none")]

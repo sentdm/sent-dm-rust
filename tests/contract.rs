@@ -1005,11 +1005,115 @@ async fn channels_list() {
 }
 
 #[tokio::test]
+async fn channels_create_sms() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: AddSmsChannelRequest = serde_json::from_str(
+        r#"{"sandbox": false, "number_type": "TEN_DLC", "area_codes": ["example"]}"#,
+    )
+    .expect("the example decodes");
+    client
+        .channels()
+        .create_sms("example", "US", "LOCAL", &request)
+        .await
+        .expect("channels.create_sms against the mock");
+}
+
+#[tokio::test]
+async fn channels_markets_list() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .channels()
+        .markets()
+        .list("example")
+        .await
+        .expect("channels.markets.list against the mock");
+}
+
+#[tokio::test]
+async fn channels_markets_retrieve() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .channels()
+        .markets()
+        .retrieve("sms", "US", "ten_dlc")
+        .await
+        .expect("channels.markets.retrieve against the mock");
+}
+
+#[tokio::test]
+async fn channels_markets_update() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: ChannelsMarketMarketComplianceWriteRequest =
+        serde_json::from_str(r#"{"sandbox": false}"#).expect("the example decodes");
+    client
+        .channels()
+        .markets()
+        .update("sms", "US", "ten_dlc", &request)
+        .await
+        .expect("channels.markets.update against the mock");
+}
+
+#[tokio::test]
+async fn channels_markets_list_numbers() {
+    let Some(client) = client() else {
+        return;
+    };
+    let params = sent::resources::channels::MarketsListNumbersParams {
+        ..Default::default()
+    };
+    client
+        .channels()
+        .markets()
+        .list_numbers("example", "US", "LOCAL", &params)
+        .await
+        .expect("channels.markets.list_numbers against the mock");
+}
+
+#[tokio::test]
+async fn channels_markets_add_numbers() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: AddMarketNumbersRequest = serde_json::from_str(r#"{"sandbox": false, "campaign_id": "8f14e45f-ceea-467f-a8f0-7c2a3d1b9e01", "numbers": [{}]}"#).expect("the example decodes");
+    client
+        .channels()
+        .markets()
+        .add_numbers("sms", "US", "TEN_DLC", &request)
+        .await
+        .expect("channels.markets.add_numbers against the mock");
+}
+
+#[tokio::test]
+async fn channels_markets_replace_numbers() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: ReplaceMarketNumbersRequest = serde_json::from_str(r#"{"sandbox": false, "campaign_id": "8f14e45f-ceea-467f-a8f0-7c2a3d1b9e01", "numbers": [{}]}"#).expect("the example decodes");
+    client
+        .channels()
+        .markets()
+        .replace_numbers("sms", "US", "TEN_DLC", &request)
+        .await
+        .expect("channels.markets.replace_numbers against the mock");
+}
+
+#[tokio::test]
 async fn channels_sms_create() {
     let Some(client) = client() else {
         return;
     };
-    let request: AddSmsChannelRequest = serde_json::from_str(r#"{"sandbox": false, "country": "US", "number_type": "TEN_DLC", "area_codes": ["example"]}"#).expect("the example decodes");
+    let request: AddSmsChannelRequest = serde_json::from_str(
+        r#"{"sandbox": false, "number_type": "TEN_DLC", "area_codes": ["example"]}"#,
+    )
+    .expect("the example decodes");
     client
         .channels()
         .sms()
@@ -1019,48 +1123,7 @@ async fn channels_sms_create() {
 }
 
 #[tokio::test]
-async fn channels_sms_list() {
-    let Some(client) = client() else {
-        return;
-    };
-    client
-        .channels()
-        .sms()
-        .list()
-        .await
-        .expect("channels.sms.list against the mock");
-}
-
-#[tokio::test]
-async fn channels_sms_retrieve() {
-    let Some(client) = client() else {
-        return;
-    };
-    client
-        .channels()
-        .sms()
-        .retrieve("US", "ten_dlc")
-        .await
-        .expect("channels.sms.retrieve against the mock");
-}
-
-#[tokio::test]
-async fn channels_sms_update() {
-    let Some(client) = client() else {
-        return;
-    };
-    let request: ChannelsMarketMarketComplianceWriteRequest =
-        serde_json::from_str(r#"{"sandbox": false}"#).expect("the example decodes");
-    client
-        .channels()
-        .sms()
-        .update("US", "ten_dlc", &request)
-        .await
-        .expect("channels.sms.update against the mock");
-}
-
-#[tokio::test]
-async fn channels_sms_ten_dlc_retrieve_compliance() {
+async fn channels_sms_ten_dlc_list_campaigns() {
     let Some(client) = client() else {
         return;
     };
@@ -1068,9 +1131,9 @@ async fn channels_sms_ten_dlc_retrieve_compliance() {
         .channels()
         .sms()
         .ten_dlc()
-        .retrieve_compliance()
+        .list_campaigns()
         .await
-        .expect("channels.sms.ten_dlc.retrieve_compliance against the mock");
+        .expect("channels.sms.ten_dlc.list_campaigns against the mock");
 }
 
 #[tokio::test]
@@ -1078,8 +1141,7 @@ async fn channels_sms_ten_dlc_add_campaign() {
     let Some(client) = client() else {
         return;
     };
-    let request: AddBrandCampaignRequest =
-        serde_json::from_str(r#"{"sandbox": false}"#).expect("the example decodes");
+    let request: AddBrandCampaignRequest = serde_json::from_str(r#"{"sandbox": false, "description": "example xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "message_flow": "example xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "use_cases": [{"use_case": "MARKETING", "sample_messages": [{}]}], "opt_in_message": "example xxxxxxxxxxxx", "opt_out_message": "example xxxxxxxxxxxx", "help_message": "example xxxxxxxxxxxx", "opt_in_keywords": "example", "opt_out_keywords": "example", "help_keywords": "example", "privacy_policy_link": "https://example.com/hook", "terms_and_conditions_link": "https://example.com/hook", "volume": "example"}"#).expect("the example decodes");
     client
         .channels()
         .sms()
@@ -1103,21 +1165,6 @@ async fn channels_sms_ten_dlc_update_campaign() {
         .update_campaign("3f2a6c1e-8b4d-4e2a-9c7f-1d5b0a9e4c21", &request)
         .await
         .expect("channels.sms.ten_dlc.update_campaign against the mock");
-}
-
-#[tokio::test]
-async fn channels_sms_ten_dlc_add_numbers() {
-    let Some(client) = client() else {
-        return;
-    };
-    let request: AddCampaignNumbersRequest = serde_json::from_str(r#"{"sandbox": false, "campaign_id": "8f14e45f-ceea-467f-a8f0-7c2a3d1b9e01", "numbers": [{}]}"#).expect("the example decodes");
-    client
-        .channels()
-        .sms()
-        .ten_dlc()
-        .add_numbers(&request)
-        .await
-        .expect("channels.sms.ten_dlc.add_numbers against the mock");
 }
 
 #[tokio::test]
@@ -1253,6 +1300,18 @@ async fn compliance_retrieve_requirements() {
 }
 
 #[tokio::test]
+async fn compliance_list_country_number_types() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .compliance()
+        .list_country_number_types("example", "US")
+        .await
+        .expect("compliance.list_country_number_types against the mock");
+}
+
+#[tokio::test]
 async fn me_retrieve() {
     let Some(client) = client() else {
         return;
@@ -1262,4 +1321,302 @@ async fn me_retrieve() {
         .retrieve()
         .await
         .expect("me.retrieve against the mock");
+}
+
+#[tokio::test]
+async fn agents_list_decisions() {
+    let Some(client) = client() else {
+        return;
+    };
+    let params = sent::resources::agents::AgentsListDecisionsParams {
+        ..Default::default()
+    };
+    client
+        .agents()
+        .list_decisions("3fa85f64-5717-4562-b3fc-2c963f66afa6", &params)
+        .await
+        .expect("agents.list_decisions against the mock");
+}
+
+#[tokio::test]
+async fn agents_retrieve_decision() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .retrieve_decision(
+            "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        )
+        .await
+        .expect("agents.retrieve_decision against the mock");
+}
+
+#[tokio::test]
+async fn agents_decide_decision() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: DecideAgentDecisionRequest =
+        serde_json::from_str(r#"{}"#).expect("the example decodes");
+    client
+        .agents()
+        .decide_decision(
+            "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            &request,
+        )
+        .await
+        .expect("agents.decide_decision against the mock");
+}
+
+#[tokio::test]
+async fn agents_list_instances() {
+    let Some(client) = client() else {
+        return;
+    };
+    let params = sent::resources::agents::AgentsListInstancesParams {
+        limit: Some(1),
+        ..Default::default()
+    };
+    client
+        .agents()
+        .list_instances("3fa85f64-5717-4562-b3fc-2c963f66afa6", &params)
+        .await
+        .expect("agents.list_instances against the mock");
+}
+
+#[tokio::test]
+async fn agents_start_instances() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: StartAgentInstancesRequest =
+        serde_json::from_str(r#"{}"#).expect("the example decodes");
+    client
+        .agents()
+        .start_instances("3fa85f64-5717-4562-b3fc-2c963f66afa6", &request)
+        .await
+        .expect("agents.start_instances against the mock");
+}
+
+#[tokio::test]
+async fn agents_stop_instances() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .stop_instances("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .await
+        .expect("agents.stop_instances against the mock");
+}
+
+#[tokio::test]
+async fn agents_retrieve_instance() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .retrieve_instance(
+            "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        )
+        .await
+        .expect("agents.retrieve_instance against the mock");
+}
+
+#[tokio::test]
+async fn agents_stop_instance() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .stop_instance(
+            "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        )
+        .await
+        .expect("agents.stop_instance against the mock");
+}
+
+#[tokio::test]
+async fn agents_list_instance_events() {
+    let Some(client) = client() else {
+        return;
+    };
+    let params = sent::resources::agents::AgentsListInstanceEventsParams {
+        cursor: Some(1),
+        limit: Some(1),
+    };
+    client
+        .agents()
+        .list_instance_events(
+            "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            &params,
+        )
+        .await
+        .expect("agents.list_instance_events against the mock");
+}
+
+#[tokio::test]
+async fn agents_activate() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .activate("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .await
+        .expect("agents.activate against the mock");
+}
+
+#[tokio::test]
+async fn agents_pause() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .pause("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .await
+        .expect("agents.pause against the mock");
+}
+
+#[tokio::test]
+async fn agents_resume() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .resume("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .await
+        .expect("agents.resume against the mock");
+}
+
+#[tokio::test]
+async fn agents_stop() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .stop("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .await
+        .expect("agents.stop against the mock");
+}
+
+#[tokio::test]
+async fn agents_archive() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .archive("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .await
+        .expect("agents.archive against the mock");
+}
+
+#[tokio::test]
+async fn agents_create() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: CreateAgentRequest = serde_json::from_str(r#"{}"#).expect("the example decodes");
+    client
+        .agents()
+        .create(&request)
+        .await
+        .expect("agents.create against the mock");
+}
+
+#[tokio::test]
+async fn agents_list() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .list()
+        .await
+        .expect("agents.list against the mock");
+}
+
+#[tokio::test]
+async fn agents_delete() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .delete("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .await
+        .expect("agents.delete against the mock");
+}
+
+#[tokio::test]
+async fn agents_retrieve() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .retrieve("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .await
+        .expect("agents.retrieve against the mock");
+}
+
+#[tokio::test]
+async fn agents_update() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: UpdateAgentRequest = serde_json::from_str(r#"{}"#).expect("the example decodes");
+    client
+        .agents()
+        .update("3fa85f64-5717-4562-b3fc-2c963f66afa6", &request)
+        .await
+        .expect("agents.update against the mock");
+}
+
+#[tokio::test]
+async fn agents_deploy() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .deploy("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .await
+        .expect("agents.deploy against the mock");
+}
+
+#[tokio::test]
+async fn agents_list_versions() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .list_versions("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .await
+        .expect("agents.list_versions against the mock");
+}
+
+#[tokio::test]
+async fn agents_prerequisites() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .prerequisites()
+        .await
+        .expect("agents.prerequisites against the mock");
 }

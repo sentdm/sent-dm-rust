@@ -8,7 +8,10 @@
     unused_imports
 )]
 
+use std::collections::HashMap;
+
 use serde::Serialize;
+use serde_json::Value;
 
 use crate::client::{Client, Method, NoQuery};
 use crate::error::Result;
@@ -274,6 +277,9 @@ pub struct WebhooksListParams {
     /// The `is_active` query parameter.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_active: Option<bool>,
+    /// Only the webhooks of this Sent agent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
 }
 
 impl PageParams for WebhooksListParams {

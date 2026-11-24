@@ -8,7 +8,10 @@
     unused_imports
 )]
 
+use std::collections::HashMap;
+
 use serde::Serialize;
+use serde_json::Value;
 
 use crate::client::{Client, Method, NoQuery};
 use crate::error::Result;
@@ -185,6 +188,8 @@ impl<'a> SenderProfiles<'a> {
     /// `channels.sms` is a **list**. Create takes the one market a profile starts in; a profile can go on to send in several, and this reports all of them, each with its own `status`.
     ///
     /// `compliance.brand` comes back **in full, with `inherit` saying whose it is**. On a request `{ "inherit": true }` carries no data because there is nothing to send; here it carries the data, because the point of a read is to say what the profile actually sends under.
+    ///
+    /// `compliance.brand.vetting` is the brand's external vetting at The Campaign Registry, read-only: `score` (0-100, the figure US carriers set 10DLC throughput by), `status` (`PENDING`, `UNSCORE`, `ACTIVE`, `FAILED` or `EXPIRED`; carriers read the score of an `ACTIVE` vet only), `vetted_at` and `expires_at`. It is `null` while no vetting record is held for the brand, and `score` is `null` for a vet that has none yet. A profile on your organization's brand reads your organization's vetting.
     ///
     /// **There is no `campaigns` array.** Brand, campaign, and compliance documents are reported at the profile root in `compliance`. A profile running on your organization's campaign is asked for none of the campaign fields, so `compliance.campaign` carries `{ "inherit": true }` with no campaign data.
     ///
