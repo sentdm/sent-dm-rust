@@ -1429,6 +1429,24 @@ async fn agents_retrieve_instance() {
 }
 
 #[tokio::test]
+async fn agents_update_instance() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: UpdateAgentInstanceRequest =
+        serde_json::from_str(r#"{}"#).expect("the example decodes");
+    client
+        .agents()
+        .update_instance(
+            "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            &request,
+        )
+        .await
+        .expect("agents.update_instance against the mock");
+}
+
+#[tokio::test]
 async fn agents_stop_instance() {
     let Some(client) = client() else {
         return;
@@ -1461,6 +1479,70 @@ async fn agents_list_instance_events() {
         )
         .await
         .expect("agents.list_instance_events against the mock");
+}
+
+#[tokio::test]
+async fn agents_list_templates() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .list_templates()
+        .await
+        .expect("agents.list_templates against the mock");
+}
+
+#[tokio::test]
+async fn agents_save_template() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: SaveAgentTemplateRequest =
+        serde_json::from_str(r#"{}"#).expect("the example decodes");
+    client
+        .agents()
+        .save_template(&request)
+        .await
+        .expect("agents.save_template against the mock");
+}
+
+#[tokio::test]
+async fn agents_retrieve_template() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .retrieve_template("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .await
+        .expect("agents.retrieve_template against the mock");
+}
+
+#[tokio::test]
+async fn agents_update_template() {
+    let Some(client) = client() else {
+        return;
+    };
+    let request: UpdateAgentTemplateRequest =
+        serde_json::from_str(r#"{}"#).expect("the example decodes");
+    client
+        .agents()
+        .update_template("3fa85f64-5717-4562-b3fc-2c963f66afa6", &request)
+        .await
+        .expect("agents.update_template against the mock");
+}
+
+#[tokio::test]
+async fn agents_delete_template() {
+    let Some(client) = client() else {
+        return;
+    };
+    client
+        .agents()
+        .delete_template("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .await
+        .expect("agents.delete_template against the mock");
 }
 
 #[tokio::test]
@@ -1590,9 +1672,10 @@ async fn agents_deploy() {
     let Some(client) = client() else {
         return;
     };
+    let request: DeployAgentRequest = serde_json::from_str(r#"{}"#).expect("the example decodes");
     client
         .agents()
-        .deploy("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        .deploy("3fa85f64-5717-4562-b3fc-2c963f66afa6", &request)
         .await
         .expect("agents.deploy against the mock");
 }

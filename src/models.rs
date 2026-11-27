@@ -450,13 +450,16 @@ pub struct AgentGuardrailsPayload {
     pub max_consecutive_unanswered: Option<i32>,
 }
 
-/// One instance to start: the contact the agent works, and what it is told about the contact.
+/// One instance to start: the contact the agent works, by number or by id, and what it is told about the contact.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct AgentInstanceRequest {
-    /// A contact of the agent's profile. Contacts are made with POST /v3/contacts; this never makes one.
+    /// The contact's number in E.164 format. A contact of the profile with it is used, or made. Give this or contact_id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phone_number: Option<String>,
+    /// A contact of the agent's profile, as POST /v3/contacts made it. Give this or phone_number.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contact_id: Option<String>,
-    /// Free-form context the agent sees for this contact (name, appointment, order).
+    /// What the agent is told about the contact: a JSON object of your own fields (name, appointment, order), at most 16 KB.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context: Option<SystemTextJsonJsonElement>,
 }
@@ -479,7 +482,7 @@ pub struct AgentListResponse {
     pub items: Option<Vec<AgentResponse>>,
 }
 
-/// One of an agent's models: the one that decides and writes with each contact (model), or its orchestrator.
+/// The agent's orchestrator: the model that writes what a decision to message needs and sends it. What decides is Sent's, and no field of an agent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct AgentModelPayload {
     /// anthropic, openai or openrouter.
@@ -594,6 +597,9 @@ pub struct AgentResponse {
     /// Where Sent stands in writing the definition from a goal or a message. Null for an agent that was only ever given a spec.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub composer: Option<AgentComposerResponse>,
+    /// The agent template a deploy with save_as_template saved; left out otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub template: Option<AgentsAgentTemplateResponse>,
 }
 
 /// The `AgentSpecRequest` object.
@@ -603,8 +609,6 @@ pub struct AgentSpecRequest {
     pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub instructions: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model: Option<AgentModelPayload>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub channels: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -629,9 +633,6 @@ pub struct AgentSpecRequest {
     /// Whether the agent writes the templates it needs itself.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub templates_on_demand: Option<bool>,
-    /// The countries the agent is set up for ahead of its contacts, as ISO 3166-1 alpha-2 codes: GB, not UK. A code that is not a country's is refused with 422.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub markets: Option<Vec<String>>,
     /// The agent's orchestrator, the model that plans for the whole agent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub orchestrator: Option<AgentModelPayload>,
@@ -675,18 +676,18 @@ pub struct AgentVersionsResponse {
     pub versions: Option<Vec<AgentVersionResponse>>,
 }
 
-/// The voice model and voice picked for an agent's calls. An OpenAI Realtime model (gpt-realtime-2.1, gpt-realtime-2.1-mini), an OpenAI Live model (gpt-live-1.1, gpt-live-1), one of ElevenLabs' speech to speech models (eleven_realtime_v1_mini, eleven_realtime_v1_max) or one of Google's Gemini Live models (gemini-3.8-live, gemini-3.8-live-extended-thinking) hears and speaks the calls itself, in that voice. Any other pick is kept as the choice, and those calls are spoken by Sent's standard speech.
+/// The voice model and voice picked for an agent's calls. An OpenAI Realtime model (gpt-realtime-2.1, gpt-realtime-2.1-mini), an OpenAI Live model (gpt-live-1.1, gpt-live-1), one of ElevenLabs' speech to speech models (eleven_realtime_v1_mini, eleven_realtime_v1_max) or one of Google's Gemini Live models (gemini-3.8-live, gemini-3.8-live-extended-thinking) or Phonic's (phonic-1, on Sent's key only) hears and speaks the calls itself, in that voice. Any other pick is kept as the choice, and those calls are spoken by Sent's standard speech.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct AgentVoiceModelPayload {
-    /// openai, elevenlabs or google.
+    /// openai, elevenlabs, google or phonic.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
-    /// The voice of that model: a name (OpenAI, Google) or a voice id (ElevenLabs).
+    /// The voice of that model: a name (OpenAI, Google) or a voice id (ElevenLabs, Phonic).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub voice: Option<String>,
-    /// sent (the default) or agent.
+    /// sent (the default) or agent. Phonic's models run on Sent's key only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub key_source: Option<String>,
 }
@@ -755,6 +756,49 @@ pub struct AgentsAgentStartedInstances {
     pub created: Option<Vec<AgentsAgentStartedInstance>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub existing: Option<Vec<AgentsAgentStartedInstance>>,
+}
+
+/// Agent templates as a list answers them, without their definitions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentsAgentTemplateListResponse {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub items: Option<Vec<AgentsAgentTemplateResponse>>,
+}
+
+/// An agent template: an agent's definition saved for reuse, to make more agents like it. Not a message template.
+/// A sender profile's templates are its own; an organization's are offered to each of its sender profiles too
+/// (scope says which), and only the context that saved one may rename or delete it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgentsAgentTemplateResponse {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub organization_id: Option<String>,
+    /// The context that saved it: a sender profile, or the organization.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_id: Option<String>,
+    /// profile: the sender profile's own. organization: the organization's, which each of its sender profiles may make agents from.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    /// The name the agent it was saved from went by: a new agent is offered it when no agent of the context has it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_name: Option<String>,
+    /// The agent it was saved from, which may since have changed or gone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_agent_id: Option<String>,
+    /// The definition a new agent starts from, without the name, Sent Numbers and MCP servers of the agent it was saved from. Only on a read of one template.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub definition: Option<SystemTextJsonJsonElement>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<String>,
 }
 
 /// Billing contact information for a profile.
@@ -2327,8 +2371,6 @@ pub struct CreateAgentRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub instructions: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model: Option<AgentModelPayload>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub channels: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sender_number_ids: Option<Vec<String>>,
@@ -2352,9 +2394,6 @@ pub struct CreateAgentRequest {
     /// Whether the agent writes the templates it needs itself.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub templates_on_demand: Option<bool>,
-    /// The countries the agent is set up for ahead of its contacts, as ISO 3166-1 alpha-2 codes: GB, not UK. A code that is not a country's is refused with 422.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub markets: Option<Vec<String>>,
     /// The agent's orchestrator, the model that plans for the whole agent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub orchestrator: Option<AgentModelPayload>,
@@ -2368,7 +2407,7 @@ pub struct CreateAgentRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub version_label: Option<String>,
     /// What the agent should do, in the caller's own words. With a goal, Sent writes the agent's definition: the
-    /// name, the instructions and the senders are worked out from it and from the account. The name, model,
+    /// name, the instructions and the senders are worked out from it and from the account. The name, orchestrator,
     /// channels, sender numbers, lifetime, guardrails and voice sent with it are kept; instructions and tools are
     /// not taken with a goal, because Sent writes them. Without a goal, the request is the agent's spec and
     /// name is required.
@@ -2379,6 +2418,11 @@ pub struct CreateAgentRequest {
     /// and kept sealed; none is ever answered back.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider_keys: Option<HashMap<String, String>>,
+    /// An agent template (GET /v3/agents/templates) the agent is made from: its definition becomes the new
+    /// agent's, with no goal written. Only name and icon are taken beside it. The agent is named
+    /// name, or as the template's agent was when no agent of the context goes by that name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub template_id: Option<String>,
 }
 
 /// The `CreateBrandCampaignRequest` object.
@@ -2495,6 +2539,13 @@ pub struct CreateSenderProfileRequest {
     pub short_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// One of the organization's agent templates (GET /v3/agents/templates with the organization's key) to
+    /// make an agent from on the new profile as soon as it exists. The agent is a draft with the template's
+    /// definition; give it the profile's numbers and activate it through /v3/agents with the profile's
+    /// x-profile-id. Agents must be enabled for the organization. A sender profile's own template cannot be
+    /// used: it is that profile's alone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_template_id: Option<String>,
     /// Who pays for what this profile sends.
     /// { "inherit": true } bills the organization; { "inherit": false } (or an empty block) bills
     /// the profile only. Omitting the block bills the profile first, with the organization covering what the
@@ -2670,6 +2721,9 @@ pub struct DecideAgentDecisionRequest {
 /// The same shape as `AgentMutationRequest`.
 pub type DeleteAgentRequest = AgentMutationRequest;
 
+/// The same shape as `AgentMutationRequest`.
+pub type DeleteAgentTemplateRequest = AgentMutationRequest;
+
 /// The same shape as `MutationRequest`.
 pub type DeleteBrandCampaignRequest = MutationRequest;
 
@@ -2699,6 +2753,15 @@ pub type DeleteVoiceAgentRequest = MutationRequest;
 
 /// The same shape as `EmptyRequest`.
 pub type DeleteWebhookV3Request = EmptyRequest;
+
+/// The `DeployAgentRequest` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct DeployAgentRequest {
+    /// Also saves the agent's definition as an agent template of the calling context, named after the agent; the
+    /// answer's template is the one saved. False by default. Nothing is saved when the deploy is refused.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub save_as_template: Option<bool>,
+}
 
 /// Configuration for AUTHENTICATION category templates
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -3379,6 +3442,9 @@ pub type GetAgentInstanceRequest = EmptyRequest;
 
 /// The same shape as `EmptyRequest`.
 pub type GetAgentRequest = EmptyRequest;
+
+/// The same shape as `EmptyRequest`.
+pub type GetAgentTemplateRequest = EmptyRequest;
 
 /// The same shape as `EmptyRequest`.
 pub type GetBrandCampaignsRequest = EmptyRequest;
@@ -4840,6 +4906,20 @@ pub type RotateVoiceSecretRequest = MutationRequest;
 /// The same shape as `MutationRequest`.
 pub type RotateWebhookSecretV3Request = MutationRequest;
 
+/// The `SaveAgentTemplateRequest` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct SaveAgentTemplateRequest {
+    /// The agent whose definition is saved. Its definition must be ready for deployment.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
+    /// What the template is called, at most 120 characters. Left out, it is the agent's name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// What the template is for, at most 500 characters. Left out, it is the agent's description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
 /// The result of a multi-recipient send.
 ///
 /// Declared here rather than in the service layer. POST /v3/messages used to publish
@@ -5111,6 +5191,14 @@ pub struct SenderProfile {
     /// Absent on a list read (documents are not fetched per market for a list).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compliance: Option<SuppliedCompliance>,
+    /// The draft agent made from agent_template_id when the profile was created. Only on that answer, and
+    /// left out when none was asked for.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
+    /// Why no agent was made from agent_template_id, when the profile was created and the agent could not be:
+    /// the profile stands, and the agent can be made with POST /v3/agents and template_id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_error: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
 }
@@ -5694,6 +5782,14 @@ pub struct ToggleWebhookStatusV3Request {
     pub is_active: bool,
 }
 
+/// The `UpdateAgentInstanceRequest` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct UpdateAgentInstanceRequest {
+    /// What the agent is told about the contact now: a JSON object that replaces the instance's context, at most 16 KB.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<SystemTextJsonJsonElement>,
+}
+
 /// The `UpdateAgentRequest` object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct UpdateAgentRequest {
@@ -5701,8 +5797,6 @@ pub struct UpdateAgentRequest {
     pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub instructions: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model: Option<AgentModelPayload>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub channels: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -5727,9 +5821,6 @@ pub struct UpdateAgentRequest {
     /// Whether the agent writes the templates it needs itself.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub templates_on_demand: Option<bool>,
-    /// The countries the agent is set up for ahead of its contacts, as ISO 3166-1 alpha-2 codes: GB, not UK. A code that is not a country's is refused with 422.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub markets: Option<Vec<String>>,
     /// The agent's orchestrator, the model that plans for the whole agent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub orchestrator: Option<AgentModelPayload>,
@@ -5746,6 +5837,17 @@ pub struct UpdateAgentRequest {
     /// With a message, Sent changes the agent's definition and no other field of this request is read.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+}
+
+/// The `UpdateAgentTemplateRequest` object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct UpdateAgentTemplateRequest {
+    /// At most 120 characters; never blank.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// At most 500 characters. An empty string takes it away.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 /// The `UpdateBrandCampaignRequest` object.

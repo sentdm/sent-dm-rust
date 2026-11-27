@@ -124,7 +124,7 @@ impl<'a> Agents<'a> {
 
     /// Start instances of an agent
     ///
-    /// Gives the agent contacts to work: one instance per contact, up to 1000 in a call. Each entry names a contact of the profile by contact_id; context is free-form and is what the agent is told about the contact. A live agent starts on them at once; a draft or paused agent holds them until it goes live. A contact that already has an open instance of this agent is answered under existing. Replays with the same idempotency_key return the first answer.
+    /// Gives the agent contacts to work: one instance per contact, up to 1000 in a call. Name each contact by phone_number (E.164; the profile's contact with that number is used, or made) or by contact_id (a contact POST /v3/contacts made). context is a JSON object of your own fields (name, appointment, order) and is what the agent is told about the contact; change it later with PATCH /v3/agents/{id}/instances/{instanceId}. A live agent starts on them at once; a draft or paused agent holds them until it goes live. A contact that already has an open instance of this agent is answered under existing. Replays with the same idempotency_key return the first answer.
     ///
     /// `POST /v3/agents/{id}/instances`
     /// # Errors
@@ -188,6 +188,33 @@ impl<'a> Agents<'a> {
             .await
     }
 
+    /// Update an instance's context
+    ///
+    /// Replaces the instance's context, what the agent is told about the contact, with a JSON object of your own fields (at most 16 KB). The agent is told the new context on its next turn with the contact. Answers the instance.
+    ///
+    /// `PATCH /v3/agents/{id}/instances/{instanceId}`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn update_instance(
+        &self,
+        id: &str,
+        instance_id: &str,
+        request: &UpdateAgentInstanceRequest,
+    ) -> Result<SystemTextJsonJsonElement> {
+        self.client
+            .send(
+                Method::PATCH,
+                &format!(
+                    "/v3/agents/{}/instances/{}",
+                    crate::client::encode(id),
+                    crate::client::encode(instance_id)
+                ),
+                &NoQuery {},
+                Some(request),
+            )
+            .await
+    }
+
     /// Stop an instance
     ///
     /// Ends the instance with the outcome stopped; the agent and its other instances go on. A reply from the contact does not reopen it. An instance that has already ended answers 204 and keeps the outcome it had.
@@ -232,6 +259,103 @@ impl<'a> Agents<'a> {
                     crate::client::encode(instance_id)
                 ),
                 params,
+                None::<&()>,
+            )
+            .await
+    }
+
+    /// List agent templates
+    ///
+    /// The agent templates the calling context can make agents from, newest first: a sender profile's own and its organization's (scope says which), or an organization's own. An agent template is a saved agent definition, not a message template. Read one with GET /v3/agents/templates/{id} for its definition.
+    ///
+    /// `GET /v3/agents/templates`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn list_templates(&self) -> Result<AgentsAgentTemplateListResponse> {
+        self.client
+            .send(
+                Method::GET,
+                "/v3/agents/templates",
+                &NoQuery {},
+                None::<&()>,
+            )
+            .await
+    }
+
+    /// Save an agent as a template
+    ///
+    /// Saves the agent's definition as an agent template of the calling context, without deploying it: an organization key's is the organization's, offered to every sender profile. The definition must be ready for deployment: 422 with what it still lacks, 409 while Sent is still writing it. The template keeps the type of agent (goal, mode, decisions, channels, models, skills, webhooks, lifetime, guardrails) and leaves out what is the one agent's own: its name, its Sent Numbers and its MCP servers. A sender profile's template is its own; an organization's is offered to each of its sender profiles. To deploy and save in one call, use POST /v3/agents/{id}/deploy with save_as_template.
+    ///
+    /// `POST /v3/agents/templates`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn save_template(
+        &self,
+        request: &SaveAgentTemplateRequest,
+    ) -> Result<AgentsAgentTemplateResponse> {
+        self.client
+            .send(
+                Method::POST,
+                "/v3/agents/templates",
+                &NoQuery {},
+                Some(request),
+            )
+            .await
+    }
+
+    /// Get an agent template
+    ///
+    /// One agent template the calling context can see, with the definition a new agent starts from.
+    ///
+    /// `GET /v3/agents/templates/{id}`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn retrieve_template(&self, id: &str) -> Result<AgentsAgentTemplateResponse> {
+        self.client
+            .send(
+                Method::GET,
+                &format!("/v3/agents/templates/{}", crate::client::encode(id)),
+                &NoQuery {},
+                None::<&()>,
+            )
+            .await
+    }
+
+    /// Rename an agent template
+    ///
+    /// Changes its name or description. Only the context that saved it may: a sender profile answers 403 for its organization's.
+    ///
+    /// `PATCH /v3/agents/templates/{id}`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn update_template(
+        &self,
+        id: &str,
+        request: &UpdateAgentTemplateRequest,
+    ) -> Result<AgentsAgentTemplateResponse> {
+        self.client
+            .send(
+                Method::PATCH,
+                &format!("/v3/agents/templates/{}", crate::client::encode(id)),
+                &NoQuery {},
+                Some(request),
+            )
+            .await
+    }
+
+    /// Delete an agent template
+    ///
+    /// Only the context that saved it may. Agents made from it are not touched: each has its own definition.
+    ///
+    /// `DELETE /v3/agents/templates/{id}`
+    /// # Errors
+    /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
+    pub async fn delete_template(&self, id: &str) -> Result<()> {
+        self.client
+            .send_empty(
+                Method::DELETE,
+                &format!("/v3/agents/templates/{}", crate::client::encode(id)),
+                &NoQuery {},
                 None::<&()>,
             )
             .await
@@ -329,7 +453,7 @@ impl<'a> Agents<'a> {
 
     /// Create an agent
     ///
-    /// Creates a draft agent on the calling context (a sender profile, or an organization key for an organization that carries senders of its own). With a goal alone, Sent writes the agent's definition from it and from the account: the answer's composer says where that stands (working, waiting on a question, blocked, done), open_items what the definition still lacks, and GET /v3/agents/{id} the result. Whatever else is sent with the goal is kept as the caller set it, and Sent writes the rest: name, mode, decisions, numbers_on_demand, templates_on_demand, markets, model, orchestrator, voice_model, channels, sender_number_ids, lifetime, guardrails and voice. Without a goal, the agent is created from a spec (name, instructions, and the same fields, with tools). A model picked with key_source agent runs on the agent's own key for its provider, sent in provider_keys with the agent; a key is checked with its provider, kept sealed and never answered back. icon is the emoji the agent is listed with, and version_label names the first version. Every sender number id must be one of the context's own senders, active or still being set up. Activate it with POST /v3/agents/{id}/activate.
+    /// Creates a draft agent on the calling context (a sender profile, or an organization key for an organization that carries senders of its own). With a goal alone, Sent writes the agent's definition from it and from the account: the answer's composer says where that stands (working, waiting on a question, blocked, done), open_items what the definition still lacks, and GET /v3/agents/{id} the result. Whatever else is sent with the goal is kept as the caller set it, and Sent writes the rest: name, mode, decisions, numbers_on_demand, templates_on_demand, orchestrator, voice_model, channels, sender_number_ids, lifetime, guardrails and voice. Without a goal, the agent is created from a spec (name, instructions, and the same fields, with tools). A model picked with key_source agent runs on the agent's own key for its provider, sent in provider_keys with the agent; a key is checked with its provider, kept sealed and never answered back. icon is the emoji the agent is listed with, and version_label names the first version. Every sender number id must be one of the context's own senders, active or still being set up. With template_id, the agent is made from an agent template the context can see (GET /v3/agents/templates): its definition is the template's, with no goal written, and only name and icon are taken beside it. Without a name it goes by the template's agent's name, or another first name, that no agent of the context goes by. Give it its Sent Numbers with PATCH /v3/agents/{id}. Activate it with POST /v3/agents/{id}/activate.
     ///
     /// `POST /v3/agents`
     /// # Errors
@@ -391,7 +515,7 @@ impl<'a> Agents<'a> {
 
     /// Change an agent
     ///
-    /// With a message (what to change, in words, or the answer to a question the agent's composer asked), Sent changes the agent's definition and the answer says where that stands; no version is made until the definition is deployed. Without one, the fields sent change the agent's spec and the result is stored as a new version: a field left out keeps its value, a list sent replaces the list, and an object sent (model, lifetime, guardrails, voice) changes only the fields it names. Channels sent without voice take the voice block out. Instances of a live agent pick the new version up at their next wake. Changing the spec of a live or paused agent, beyond its name, is refused with 403 BUSINESS_034 while the account is not ready to run agents (KYC, a card on file, auto-charge).
+    /// With a message (what to change, in words, or the answer to a question the agent's composer asked), Sent changes the agent's definition and the answer says where that stands; no version is made until the definition is deployed. Without one, the fields sent change the agent's spec and the result is stored as a new version: a field left out keeps its value, a list sent replaces the list, and an object sent (orchestrator, lifetime, guardrails, voice) changes only the fields it names. Channels sent without voice take the voice block out. Instances of a live agent pick the new version up at their next wake. Changing the spec of a live or paused agent, beyond its name, is refused with 403 BUSINESS_034 while the account is not ready to run agents (KYC, a card on file, auto-charge).
     ///
     /// `PATCH /v3/agents/{id}`
     /// # Errors
@@ -414,13 +538,13 @@ impl<'a> Agents<'a> {
     /// `POST /v3/agents/{id}/deploy`
     /// # Errors
     /// `Error::Api` when Sent refuses the request, `Error::Transport` when it cannot be reached.
-    pub async fn deploy(&self, id: &str) -> Result<AgentResponse> {
+    pub async fn deploy(&self, id: &str, request: &DeployAgentRequest) -> Result<AgentResponse> {
         self.client
             .send(
                 Method::POST,
                 &format!("/v3/agents/{}/deploy", crate::client::encode(id)),
                 &NoQuery {},
-                None::<&()>,
+                Some(request),
             )
             .await
     }

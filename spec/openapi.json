@@ -12367,7 +12367,7 @@
           "Sender Profiles"
         ],
         "summary": "Create a sender profile",
-        "description": "Creates a sender profile under your organization. A profile is a customer of yours: it sends under its own or your identity, and your customers never see Sent.\n\n## The minimum\n\n`{ \"name\": \"Example Retail\", \"short_name\": \"Example\" }`. `short_name` is the SMS sender id and is required. Inbox and opt-out list come from your organization. Its brand and campaign are your organization's only where `compliance` says `{ \"inherit\": true }` — omitted, the profile has neither. Billing defaults to the profile's own balance, with your organization covering what it cannot.\n\n**A sender is not one of them.** The brand and the campaign can be inherited; a number cannot. A profile either has a sender of its own — `channels.sms` — or it has none and reaches only the countries Sent runs a shared route for. The US has none: without a `TEN_DLC` number of its own, a profile's SMS to US numbers ends as `FAILED` with `DELIVERY_003`.\n\n## Saying what a profile owns\n\nEvery capability is one of three things, and there is no flag per state:\n\n- **Its own** — supply the capability's fields. Data is what owning looks like.\n- **The organization's** — `{ \"inherit\": true }`, with nothing else.\n- **None** — omit the block.\n\nThere is no `\"inherit\": false` that also carries no data. A second way to say the same thing would let a request contradict itself.\n\nInheriting needs no id. A customer has exactly one brand, so `brand` resolves without one.\n\n**The campaign has no block of its own.** It is only ever a registration, and every field of one is something a specific market demands — so it lives in `compliance`, alongside the rest of what that market asks for, and it says whose it is there too: `\"compliance\": { \"campaign\": { \"inherit\": true } }` runs the profile on your organization's campaign and brand, and stops this call asking for any campaign field. `\"brand\": { \"inherit\": true }` alone inherits the brand only: the campaign is then the profile's own. Inheriting takes *all* of your organization's, because inheritance resolves an owner rather than a single row.\n\nA profile with a `brand` of its own **cannot** inherit the campaign, and asking is refused with `400`: a campaign is filed against a brand registration, and your organization's campaign is filed against your organization's brand rather than this profile's. Inherit both, own both, or inherit the brand and own the campaign.\n\n`channels.sms` is the market the profile starts in — one `country` and `number_type`. It decides what else this call asks for: the compliance catalog is keyed on that pair, and it determines which fields `brand` accepts and what `compliance` answers for.\n\n**Several numbers in that market**: `channels.sms.numbers` lists them, one entry per area code, e.g. `[{\"area_code\": \"212\", \"quantity\": 2}, {\"quantity\": 1}]` for two in 212 and one in any area code. `quantity` defaults to 1, an entry without `area_code` means any area code, and the total is at most 49. The market is created with **one campaign**, the one in `compliance.campaign`, and a US `TEN_DLC` market's numbers are stored on it and assigned when it is approved. A profile inheriting your organization's campaign keeps one number. Every number is listed in `channels.sms[].numbers` with its area code and status.\n\nA profile is a tenant, not a market, so it can go on to send in several — but through `POST /v3/channels/sms` with the `x-profile-id` header, one market and its compliance at a time. Reads return every market as `channels.sms[]`, so the read shape is a list even where this one is not.\n\n`brand` is required when `number_type` is `TEN_DLC` — inherited or its own. A 10DLC registration has nothing to attach to without one, and no later call can supply it, so omitting it is refused with `400` rather than reported as outstanding.\n\n## Use cases and volume\n\nA TCR campaign declares one to five `use_cases`, each with its own `sample_messages` — TCR attributes samples to the use case they illustrate, so they travel together.\n\nHow that set registers is derived from `volume` and never declared. Below the low-volume threshold the campaign registers as `LOW_VOLUME` with every entry as a sub-use-case; above it, one entry registers as that use case outright and several register as `MIXED` with sub-use-cases. `MIXED` and `LOW_VOLUME` are therefore refused as `use_case` values: they describe the shape of a set, which is ours to work out.\n\n**Leaving `volume` out is accepted and costs more.** An absent value registers the campaign at the standard tier, which carries the higher fee — so say so when a campaign is low volume. Sole proprietor brands are the exception: their fee is fixed by entity type, and volume only decides the use case.\n\n## Compliance\n\n`brand` is captured identically in every country. Everything a specific market demands on top of it — including every field of the campaign — goes in `compliance`, as key/value entries whose keys depend on the sender's country and type. US `TEN_DLC` registers with The Campaign Registry and asks for a substantial set; an alphanumeric sender may pre-register with documents, or need nothing at all.\n\nYou do not have to know any of it. Omit `compliance` and the response lists exactly what is outstanding, with types and accepted values — or call `GET /v3/compliance/requirements` first. Anything Sent supplies on your behalf is never asked for, and is rejected if sent.\n\nRequirements can be conditional, and the condition is published as `required_when` so you can render a form from it rather than discover the rule by being rejected. Every US `TEN_DLC` campaign field carries `compliance.inherit != true` — send `\"inherit\": true` and none of them is asked for or accepted, because the profile is running on your organization's campaign.\n\n## Uploading documents\n\nSend `application/json` for everything except a market that pre-registers a sender with supporting documents. For those, send `multipart/form-data` instead: put this entire document — unchanged — in a single field named `profile`, and attach each file under a field named after the compliance key it satisfies. Individual form fields per property are not read; the payload is always the one `profile` field.\n\nA pre-registration market has no `brand` and no `campaign` — those are asked for only where a regime registers one — so its `compliance` carries nothing at all, and the documents are the request:\n\n```bash\ncurl -X POST https://api.sent.dm/v3/sender-profiles \\\n  -H 'x-api-key: YOUR_SECRET_TOKEN' \\\n  -F 'profile={\n        \"name\": \"Example Retail\",\n        \"short_name\": \"EXAMPLE\",\n        \"channels\": {\n          \"sms\": {\n            \"country\": \"XK\",\n            \"number_type\": \"ALPHANUMERIC\",\n            \"sender_value\": \"EXAMPLE\"\n          }\n        }\n      }' \\\n  -F 'business_registration=@registration.pdf' \\\n  -F 'letter_of_authorization=@loa.pdf'\n```\n\n`business_registration` and `letter_of_authorization` are illustrative. The real field names are whatever that market configures, so read them from `GET /v3/compliance/requirements`, which lists documents separately from the values — under `attachments`, each with the `field_name` to put the file under.\n\nA document has no JSON form, so naming one in `compliance` is refused with `400` rather than ignored: accepting it would report the requirement as satisfied while no file was ever stored.\n\n## WhatsApp and RCS\n\nNeither can be inherited, so neither takes an `inherit`: the profile's WhatsApp account and RCS agent are its own or it has none. Sharing your organization's would share its inbox and its throughput, which makes the two indistinguishable to a recipient.\n\n`channels.whatsapp` names one of the accounts shared into your organization, and takes the two identifiers nothing else can supply: `waba_id`, because your organization holds one account per client, and `phone_number_id`, because naming the account's number is what assigns it to the profile as the number it sends from.\n\nEverything else is resolved from your organization — the Multi-Partner Solution the account arrived through, the client business portfolio that owns it, the access token and that token's expiry. None of them is accepted here: the first two are Meta's answer about provenance, so a value you sent could assert a partnership Meta disagrees with, and the token is minted per client business and rotates roughly every sixty days.\n\n`phone_number_id` is optional. Omit it to connect the account now and settle the number later — the channel reads as `ACTION_NEEDED` with `reason_code` `CHANNEL_007`, and the profile's WhatsApp messages fail until a number is named. They do not fall back to your organization's account. `POST /v3/channels/whatsapp` connects an account to an existing profile and resolves the same fields the same way.\n\nAn account of its own needs a sender of its own, so `channels.whatsapp` requires `channels.sms`. A profile sending SMS on your organization's sender shares that inbox and opt-out list, and is not a separate tenant to give an account to — asking is refused with `400`, before your organization is asked to resolve anything.\n\n`channels.rcs` records the RCS agent. RCS (Rich Communication Services) is the next-generation SMS standard built into Android — it lets you send branded messages with images, buttons and read receipts over the carrier network, with no app install required. Learn more in the [Google RCS documentation](https://developers.google.com/business-communications/rcs-business-messaging).\n\nAll fields on the agent form are required except `opt_in_screenshot_url`. The full form must be submitted in one go so the carrier review has everything it needs. A carrier approval no API call can trigger is arranged offline, so the status reports `PROVISIONING` until it is.\n\n## Responses\n\n`201` when the profile is complete on return — the fully-inherited case, where nothing needs registering. `202` when something is still provisioning, with per-capability status and outstanding requirements. `409` when the WhatsApp account supplied is already recorded. `400` covers a wrong value as well as a missing one: a missing brand under `TEN_DLC`, a brand or campaign inherited under `TEN_DLC` that your organization does not have yet, an unknown compliance key, a bad type, a sender id the market does not allow, a `waba_id` that is not one of the accounts shared into your organization, or a WhatsApp account Meta rejects. `502` when Meta could not be reached to verify the WhatsApp account; nothing was created, so retry.",
+        "description": "Creates a sender profile under your organization. A profile is a customer of yours: it sends under its own or your identity, and your customers never see Sent.\n\n## The minimum\n\n`{ \"name\": \"Example Retail\", \"short_name\": \"Example\" }`. `short_name` is the SMS sender id and is required. Inbox and opt-out list come from your organization. Its brand and campaign are your organization's only where `compliance` says `{ \"inherit\": true }` — omitted, the profile has neither. Billing defaults to the profile's own balance, with your organization covering what it cannot.\n\n**A sender is not one of them.** The brand and the campaign can be inherited; a number cannot. A profile either has a sender of its own — `channels.sms` — or it has none and reaches only the countries Sent runs a shared route for. The US has none: without a `TEN_DLC` number of its own, a profile's SMS to US numbers ends as `FAILED` with `DELIVERY_003`.\n\n## Saying what a profile owns\n\nEvery capability is one of three things, and there is no flag per state:\n\n- **Its own** — supply the capability's fields. Data is what owning looks like.\n- **The organization's** — `{ \"inherit\": true }`, with nothing else.\n- **None** — omit the block.\n\nThere is no `\"inherit\": false` that also carries no data. A second way to say the same thing would let a request contradict itself.\n\nInheriting needs no id. A customer has exactly one brand, so `brand` resolves without one.\n\n**The campaign has no block of its own.** It is only ever a registration, and every field of one is something a specific market demands — so it lives in `compliance`, alongside the rest of what that market asks for, and it says whose it is there too: `\"compliance\": { \"campaign\": { \"inherit\": true } }` runs the profile on your organization's campaign and brand, and stops this call asking for any campaign field. `\"brand\": { \"inherit\": true }` alone inherits the brand only: the campaign is then the profile's own. Inheriting takes *all* of your organization's, because inheritance resolves an owner rather than a single row.\n\nA profile with a `brand` of its own **cannot** inherit the campaign, and asking is refused with `400`: a campaign is filed against a brand registration, and your organization's campaign is filed against your organization's brand rather than this profile's. Inherit both, own both, or inherit the brand and own the campaign.\n\n`channels.sms` is the market the profile starts in — one `country` and `number_type`. It decides what else this call asks for: the compliance catalog is keyed on that pair, and it determines which fields `brand` accepts and what `compliance` answers for.\n\n**Several numbers in that market**: `channels.sms.numbers` lists them, one entry per area code, e.g. `[{\"area_code\": \"212\", \"quantity\": 2}, {\"quantity\": 1}]` for two in 212 and one in any area code. `quantity` defaults to 1, an entry without `area_code` means any area code, and the total is at most 49. The market is created with **one campaign**, the one in `compliance.campaign`, and a US `TEN_DLC` market's numbers are stored on it and assigned when it is approved. A profile inheriting your organization's campaign keeps one number. Every number is listed in `channels.sms[].numbers` with its area code and status.\n\nA profile is a tenant, not a market, so it can go on to send in several — but through `POST /v3/channels/sms` with the `x-profile-id` header, one market and its compliance at a time. Reads return every market as `channels.sms[]`, so the read shape is a list even where this one is not.\n\n`brand` is required when `number_type` is `TEN_DLC` — inherited or its own. A 10DLC registration has nothing to attach to without one, and no later call can supply it, so omitting it is refused with `400` rather than reported as outstanding.\n\n## Use cases and volume\n\nA TCR campaign declares one to five `use_cases`, each with its own `sample_messages` — TCR attributes samples to the use case they illustrate, so they travel together.\n\nHow that set registers is derived from `volume` and never declared. Below the low-volume threshold the campaign registers as `LOW_VOLUME` with every entry as a sub-use-case; above it, one entry registers as that use case outright and several register as `MIXED` with sub-use-cases. `MIXED` and `LOW_VOLUME` are therefore refused as `use_case` values: they describe the shape of a set, which is ours to work out.\n\n**Leaving `volume` out is accepted and costs more.** An absent value registers the campaign at the standard tier, which carries the higher fee — so say so when a campaign is low volume. Sole proprietor brands are the exception: their fee is fixed by entity type, and volume only decides the use case.\n\n## Compliance\n\n`brand` is captured identically in every country. Everything a specific market demands on top of it — including every field of the campaign — goes in `compliance`, as key/value entries whose keys depend on the sender's country and type. US `TEN_DLC` registers with The Campaign Registry and asks for a substantial set; an alphanumeric sender may pre-register with documents, or need nothing at all.\n\nYou do not have to know any of it. Omit `compliance` and the response lists exactly what is outstanding, with types and accepted values — or call `GET /v3/compliance/requirements` first. Anything Sent supplies on your behalf is never asked for, and is rejected if sent.\n\nRequirements can be conditional, and the condition is published as `required_when` so you can render a form from it rather than discover the rule by being rejected. Every US `TEN_DLC` campaign field carries `compliance.inherit != true` — send `\"inherit\": true` and none of them is asked for or accepted, because the profile is running on your organization's campaign.\n\n## Uploading documents\n\nSend `application/json` for everything except a market that pre-registers a sender with supporting documents. For those, send `multipart/form-data` instead: put this entire document — unchanged — in a single field named `profile`, and attach each file under a field named after the compliance key it satisfies. Individual form fields per property are not read; the payload is always the one `profile` field.\n\nA pre-registration market has no `brand` and no `campaign` — those are asked for only where a regime registers one — so its `compliance` carries nothing at all, and the documents are the request:\n\n```bash\ncurl -X POST https://api.sent.dm/v3/sender-profiles \\\n  -H 'x-api-key: YOUR_SECRET_TOKEN' \\\n  -F 'profile={\n        \"name\": \"Example Retail\",\n        \"short_name\": \"EXAMPLE\",\n        \"channels\": {\n          \"sms\": {\n            \"country\": \"XK\",\n            \"number_type\": \"ALPHANUMERIC\",\n            \"sender_value\": \"EXAMPLE\"\n          }\n        }\n      }' \\\n  -F 'business_registration=@registration.pdf' \\\n  -F 'letter_of_authorization=@loa.pdf'\n```\n\n`business_registration` and `letter_of_authorization` are illustrative. The real field names are whatever that market configures, so read them from `GET /v3/compliance/requirements`, which lists documents separately from the values — under `attachments`, each with the `field_name` to put the file under.\n\nA document has no JSON form, so naming one in `compliance` is refused with `400` rather than ignored: accepting it would report the requirement as satisfied while no file was ever stored.\n\n## WhatsApp and RCS\n\nNeither can be inherited, so neither takes an `inherit`: the profile's WhatsApp account and RCS agent are its own or it has none. Sharing your organization's would share its inbox and its throughput, which makes the two indistinguishable to a recipient.\n\n`channels.whatsapp` names one of the accounts shared into your organization, and takes the two identifiers nothing else can supply: `waba_id`, because your organization holds one account per client, and `phone_number_id`, because naming the account's number is what assigns it to the profile as the number it sends from.\n\nEverything else is resolved from your organization — the Multi-Partner Solution the account arrived through, the client business portfolio that owns it, the access token and that token's expiry. None of them is accepted here: the first two are Meta's answer about provenance, so a value you sent could assert a partnership Meta disagrees with, and the token is minted per client business and rotates roughly every sixty days.\n\n`phone_number_id` is optional. Omit it to connect the account now and settle the number later — the channel reads as `ACTION_NEEDED` with `reason_code` `CHANNEL_007`, and the profile's WhatsApp messages fail until a number is named. They do not fall back to your organization's account. `POST /v3/channels/whatsapp` connects an account to an existing profile and resolves the same fields the same way.\n\nAn account of its own needs a sender of its own, so `channels.whatsapp` requires `channels.sms`. A profile sending SMS on your organization's sender shares that inbox and opt-out list, and is not a separate tenant to give an account to — asking is refused with `400`, before your organization is asked to resolve anything.\n\n`channels.rcs` records the RCS agent. RCS (Rich Communication Services) is the next-generation SMS standard built into Android — it lets you send branded messages with images, buttons and read receipts over the carrier network, with no app install required. Learn more in the [Google RCS documentation](https://developers.google.com/business-communications/rcs-business-messaging).\n\nAll fields on the agent form are required except `opt_in_screenshot_url`. The full form must be submitted in one go so the carrier review has everything it needs. A carrier approval no API call can trigger is arranged offline, so the status reports `PROVISIONING` until it is.\n\n## An agent\n\n`agent_template_id` (optional) names one of your organization's agent templates (`GET /v3/agents/templates`). As soon as the profile exists, a draft agent is made from it on the profile, and the answer's `agent_id` is that agent: give it the profile's numbers and activate it through `/v3/agents` with the profile's `x-profile-id`. The template is checked before the profile is made: one that is not your organization's is a `404`, agents not enabled a `403`, and no profile is made. Should the agent fail once the profile exists, the profile stands and `agent_error` says why; make the agent with `POST /v3/agents` and `template_id`.\n\n## Responses\n\n`201` when the profile is complete on return — the fully-inherited case, where nothing needs registering. `202` when something is still provisioning, with per-capability status and outstanding requirements. `409` when the WhatsApp account supplied is already recorded. `400` covers a wrong value as well as a missing one: a missing brand under `TEN_DLC`, a brand or campaign inherited under `TEN_DLC` that your organization does not have yet, an unknown compliance key, a bad type, a sender id the market does not allow, a `waba_id` that is not one of the accounts shared into your organization, or a WhatsApp account Meta rejects. `502` when Meta could not be reached to verify the WhatsApp account; nothing was created, so retry.",
         "operationId": "SentDmServicesEndpointsCustomerAPIv3SenderProfilesCreateSenderProfileEndpoint",
         "parameters": [
           {
@@ -31784,7 +31784,7 @@
           "Agents"
         ],
         "summary": "Start instances of an agent",
-        "description": "Gives the agent contacts to work: one instance per contact, up to 1000 in a call. Each entry names a contact of the profile by contact_id; context is free-form and is what the agent is told about the contact. A live agent starts on them at once; a draft or paused agent holds them until it goes live. A contact that already has an open instance of this agent is answered under existing. Replays with the same idempotency_key return the first answer.",
+        "description": "Gives the agent contacts to work: one instance per contact, up to 1000 in a call. Name each contact by phone_number (E.164; the profile's contact with that number is used, or made) or by contact_id (a contact POST /v3/contacts made). context is a JSON object of your own fields (name, appointment, order) and is what the agent is told about the contact; change it later with PATCH /v3/agents/{id}/instances/{instanceId}. A live agent starts on them at once; a draft or paused agent holds them until it goes live. A contact that already has an open instance of this agent is answered under existing. Replays with the same idempotency_key return the first answer.",
         "operationId": "SentDmServicesEndpointsCustomerAPIv3AgentsStartAgentInstancesEndpoint",
         "parameters": [
           {
@@ -32553,6 +32553,286 @@
           }
         ]
       },
+      "patch": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Update an instance's context",
+        "description": "Replaces the instance's context, what the agent is told about the contact, with a JSON object of your own fields (at most 16 KB). The agent is told the new context on its next turn with the contact. Answers the instance.",
+        "operationId": "SentDmServicesEndpointsCustomerAPIv3AgentsUpdateAgentInstanceEndpoint",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The agent the instance belongs to.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "instanceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Unique key to ensure idempotent request processing. Must be 1-255 alphanumeric characters, hyphens, or underscores. Responses are cached for 24 hours per key per customer.",
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "pattern": "^[a-zA-Z0-9_-]+$"
+            },
+            "example": "req_abc123_retry1"
+          },
+          {
+            "name": "x-profile-id",
+            "in": "header",
+            "description": "Profile UUID to scope the request to a child profile. Only organization API keys can use this header. The profile must belong to the calling organization.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "UpdateAgentInstanceRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3AgentsRequestsUpdateAgentInstanceRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiResponseOfJsonElement"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CustomerApiKey": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
       "delete": {
         "tags": [
           "Agents"
@@ -32959,6 +33239,1018 @@
           },
           "502": {
             "description": "",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CustomerApiKey": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v3/agents/templates": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "List agent templates",
+        "description": "The agent templates the calling context can make agents from, newest first: a sender profile's own and its organization's (scope says which), or an organization's own. An agent template is a saved agent definition, not a message template. Read one with GET /v3/agents/templates/{id} for its definition.",
+        "operationId": "SentDmServicesEndpointsCustomerAPIv3AgentsListAgentTemplatesEndpoint",
+        "parameters": [
+          {
+            "name": "x-profile-id",
+            "in": "header",
+            "description": "Profile UUID to scope the request to a child profile. Only organization API keys can use this header. The profile must belong to the calling organization.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiResponseOfAgentTemplateListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CustomerApiKey": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Save an agent as a template",
+        "description": "Saves the agent's definition as an agent template of the calling context, without deploying it: an organization key's is the organization's, offered to every sender profile. The definition must be ready for deployment: 422 with what it still lacks, 409 while Sent is still writing it. The template keeps the type of agent (goal, mode, decisions, channels, models, skills, webhooks, lifetime, guardrails) and leaves out what is the one agent's own: its name, its Sent Numbers and its MCP servers. A sender profile's template is its own; an organization's is offered to each of its sender profiles. To deploy and save in one call, use POST /v3/agents/{id}/deploy with save_as_template.",
+        "operationId": "SentDmServicesEndpointsCustomerAPIv3AgentsSaveAgentTemplateEndpoint",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Unique key to ensure idempotent request processing. Must be 1-255 alphanumeric characters, hyphens, or underscores. Responses are cached for 24 hours per key per customer.",
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "pattern": "^[a-zA-Z0-9_-]+$"
+            },
+            "example": "req_abc123_retry1"
+          },
+          {
+            "name": "x-profile-id",
+            "in": "header",
+            "description": "Profile UUID to scope the request to a child profile. Only organization API keys can use this header. The profile must belong to the calling organization.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "SaveAgentTemplateRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3AgentsRequestsSaveAgentTemplateRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiResponseOfAgentTemplateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CustomerApiKey": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v3/agents/templates/{id}": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Get an agent template",
+        "description": "One agent template the calling context can see, with the definition a new agent starts from.",
+        "operationId": "SentDmServicesEndpointsCustomerAPIv3AgentsGetAgentTemplateEndpoint",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-profile-id",
+            "in": "header",
+            "description": "Profile UUID to scope the request to a child profile. Only organization API keys can use this header. The profile must belong to the calling organization.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiResponseOfAgentTemplateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CustomerApiKey": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Rename an agent template",
+        "description": "Changes its name or description. Only the context that saved it may: a sender profile answers 403 for its organization's.",
+        "operationId": "SentDmServicesEndpointsCustomerAPIv3AgentsUpdateAgentTemplateEndpoint",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Unique key to ensure idempotent request processing. Must be 1-255 alphanumeric characters, hyphens, or underscores. Responses are cached for 24 hours per key per customer.",
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "pattern": "^[a-zA-Z0-9_-]+$"
+            },
+            "example": "req_abc123_retry1"
+          },
+          {
+            "name": "x-profile-id",
+            "in": "header",
+            "description": "Profile UUID to scope the request to a child profile. Only organization API keys can use this header. The profile must belong to the calling organization.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "UpdateAgentTemplateRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3AgentsRequestsUpdateAgentTemplateRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiResponseOfAgentTemplateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CustomerApiKey": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Delete an agent template",
+        "description": "Only the context that saved it may. Agents made from it are not touched: each has its own definition.",
+        "operationId": "SentDmServicesEndpointsCustomerAPIv3AgentsDeleteAgentTemplateEndpoint",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-profile-id",
+            "in": "header",
+            "description": "Profile UUID to scope the request to a child profile. Only organization API keys can use this header. The profile must belong to the calling organization.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier for support and debugging",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Response-Time": {
+                "description": "Server processing time (e.g. \"12ms\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-API-Version": {
+                "description": "API version (always \"v3\")",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-Id": {
+                "description": "Echoed profile UUID when the request is profile-scoped via `x-profile-id`",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "headers": {
               "X-Request-Id": {
                 "description": "Unique request identifier for support and debugging",
@@ -34526,7 +35818,7 @@
           "Agents"
         ],
         "summary": "Create an agent",
-        "description": "Creates a draft agent on the calling context (a sender profile, or an organization key for an organization that carries senders of its own). With a goal alone, Sent writes the agent's definition from it and from the account: the answer's composer says where that stands (working, waiting on a question, blocked, done), open_items what the definition still lacks, and GET /v3/agents/{id} the result. Whatever else is sent with the goal is kept as the caller set it, and Sent writes the rest: name, mode, decisions, numbers_on_demand, templates_on_demand, markets, model, orchestrator, voice_model, channels, sender_number_ids, lifetime, guardrails and voice. Without a goal, the agent is created from a spec (name, instructions, and the same fields, with tools). A model picked with key_source agent runs on the agent's own key for its provider, sent in provider_keys with the agent; a key is checked with its provider, kept sealed and never answered back. icon is the emoji the agent is listed with, and version_label names the first version. Every sender number id must be one of the context's own senders, active or still being set up. Activate it with POST /v3/agents/{id}/activate.",
+        "description": "Creates a draft agent on the calling context (a sender profile, or an organization key for an organization that carries senders of its own). With a goal alone, Sent writes the agent's definition from it and from the account: the answer's composer says where that stands (working, waiting on a question, blocked, done), open_items what the definition still lacks, and GET /v3/agents/{id} the result. Whatever else is sent with the goal is kept as the caller set it, and Sent writes the rest: name, mode, decisions, numbers_on_demand, templates_on_demand, orchestrator, voice_model, channels, sender_number_ids, lifetime, guardrails and voice. Without a goal, the agent is created from a spec (name, instructions, and the same fields, with tools). A model picked with key_source agent runs on the agent's own key for its provider, sent in provider_keys with the agent; a key is checked with its provider, kept sealed and never answered back. icon is the emoji the agent is listed with, and version_label names the first version. Every sender number id must be one of the context's own senders, active or still being set up. With template_id, the agent is made from an agent template the context can see (GET /v3/agents/templates): its definition is the template's, with no goal written, and only name and icon are taken beside it. Without a name it goes by the template's agent's name, or another first name, that no agent of the context goes by. Give it its Sent Numbers with PATCH /v3/agents/{id}. Activate it with POST /v3/agents/{id}/activate.",
         "operationId": "SentDmServicesEndpointsCustomerAPIv3AgentsCreateAgentEndpoint",
         "parameters": [
           {
@@ -35407,7 +36699,7 @@
           "Agents"
         ],
         "summary": "Change an agent",
-        "description": "With a message (what to change, in words, or the answer to a question the agent's composer asked), Sent changes the agent's definition and the answer says where that stands; no version is made until the definition is deployed. Without one, the fields sent change the agent's spec and the result is stored as a new version: a field left out keeps its value, a list sent replaces the list, and an object sent (model, lifetime, guardrails, voice) changes only the fields it names. Channels sent without voice take the voice block out. Instances of a live agent pick the new version up at their next wake. Changing the spec of a live or paused agent, beyond its name, is refused with 403 BUSINESS_034 while the account is not ready to run agents (KYC, a card on file, auto-charge).",
+        "description": "With a message (what to change, in words, or the answer to a question the agent's composer asked), Sent changes the agent's definition and the answer says where that stands; no version is made until the definition is deployed. Without one, the fields sent change the agent's spec and the result is stored as a new version: a field left out keeps its value, a list sent replaces the list, and an object sent (orchestrator, lifetime, guardrails, voice) changes only the fields it names. Channels sent without voice take the voice block out. Instances of a live agent pick the new version up at their next wake. Changing the spec of a live or paused agent, beyond its name, is refused with 403 BUSINESS_034 while the account is not ready to run agents (KYC, a card on file, auto-charge).",
         "operationId": "SentDmServicesEndpointsCustomerAPIv3AgentsUpdateAgentEndpoint",
         "parameters": [
           {
@@ -35756,6 +37048,19 @@
             }
           }
         ],
+        "requestBody": {
+          "x-name": "DeployAgentRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3AgentsRequestsDeployAgentRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
         "responses": {
           "200": {
             "description": "Success",
@@ -40420,6 +41725,17 @@
               }
             ]
           },
+          "agent_id": {
+            "type": "string",
+            "description": "The draft agent made from agent_template_id when the profile was created. Only on that answer, and\nleft out when none was asked for.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "agent_error": {
+            "type": "string",
+            "description": "Why no agent was made from agent_template_id, when the profile was created and the agent could not be:\nthe profile stands, and the agent can be made with POST /v3/agents and template_id.",
+            "nullable": true
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"
@@ -41028,6 +42344,13 @@
               },
               "description": {
                 "type": "string",
+                "nullable": true,
+                "example": null
+              },
+              "agent_template_id": {
+                "type": "string",
+                "description": "One of the organization's agent templates (GET /v3/agents/templates with the organization's key) to\nmake an agent from on the new profile as soon as it exists. The agent is a draft with the template's\ndefinition; give it the profile's numbers and activate it through /v3/agents with the profile's\nx-profile-id. Agents must be enabled for the organization. A sender profile's own template cannot be\nused: it is that profile's alone.",
+                "format": "uuid",
                 "nullable": true,
                 "example": null
               },
@@ -47000,11 +48323,266 @@
           }
         ]
       },
+      "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsUpdateAgentInstanceRequest": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3AgentsRequestsAgentMutationRequest"
+          },
+          {
+            "title": "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsUpdateAgentInstanceRequest_Properties",
+            "type": "object",
+            "description": "PATCH /v3/agents/{id}/instances/{instanceId}.",
+            "additionalProperties": false,
+            "properties": {
+              "context": {
+                "type": "object",
+                "description": "What the agent is told about the contact now: a JSON object that replaces the instance's context, at most 16 KB.",
+                "nullable": true,
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SystemTextJsonJsonElement"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
       "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsListAgentInstanceEventsRequest": {
         "type": "object",
         "allOf": [
           {
             "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedHeaderBaseRequest"
+          }
+        ]
+      },
+      "SentDmServicesEndpointsCustomerAPIv3SharedApiResponseOfAgentTemplateListResponse": {
+        "type": "object",
+        "description": "Standard API response envelope for all v3 endpoints",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Indicates whether the request was successful"
+          },
+          "data": {
+            "type": "object",
+            "description": "The response data (null if error)",
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SentDmServicesCommonServicesAgentsAgentTemplateListResponse"
+              }
+            ]
+          },
+          "error": {
+            "type": "object",
+            "description": "Error details (null if successful)",
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiError"
+              }
+            ]
+          },
+          "meta": {
+            "description": "Metadata about the request and response",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiMeta"
+              }
+            ]
+          }
+        }
+      },
+      "SentDmServicesCommonServicesAgentsAgentTemplateListResponse": {
+        "type": "object",
+        "description": "Agent templates as a list answers them, without their definitions.",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SentDmServicesCommonServicesAgentsAgentTemplateResponse"
+            }
+          }
+        }
+      },
+      "SentDmServicesCommonServicesAgentsAgentTemplateResponse": {
+        "type": "object",
+        "description": "An agent template: an agent's definition saved for reuse, to make more agents like it. Not a message template.\nA sender profile's templates are its own; an organization's are offered to each of its sender profiles too\n(scope says which), and only the context that saved one may rename or delete it.",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "owner_id": {
+            "type": "string",
+            "description": "The context that saved it: a sender profile, or the organization.",
+            "format": "uuid"
+          },
+          "scope": {
+            "type": "string",
+            "description": "profile: the sender profile's own. organization: the organization's, which each of its sender profiles may make agents from."
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "agent_name": {
+            "type": "string",
+            "description": "The name the agent it was saved from went by: a new agent is offered it when no agent of the context has it.",
+            "nullable": true
+          },
+          "source_agent_id": {
+            "type": "string",
+            "description": "The agent it was saved from, which may since have changed or gone.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "definition": {
+            "type": "object",
+            "description": "The definition a new agent starts from, without the name, Sent Numbers and MCP servers of the agent it was saved from. Only on a read of one template.",
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SystemTextJsonJsonElement"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "SentDmServicesEndpointsCustomerAPIv3SharedApiResponseOfAgentTemplateResponse": {
+        "type": "object",
+        "description": "Standard API response envelope for all v3 endpoints",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Indicates whether the request was successful"
+          },
+          "data": {
+            "type": "object",
+            "description": "The response data (null if error)",
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SentDmServicesCommonServicesAgentsAgentTemplateResponse"
+              }
+            ]
+          },
+          "error": {
+            "type": "object",
+            "description": "Error details (null if successful)",
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiError"
+              }
+            ]
+          },
+          "meta": {
+            "description": "Metadata about the request and response",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedApiMeta"
+              }
+            ]
+          }
+        }
+      },
+      "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsGetAgentTemplateRequest": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3SharedHeaderBaseRequest"
+          }
+        ]
+      },
+      "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsSaveAgentTemplateRequest": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3AgentsRequestsAgentMutationRequest"
+          },
+          {
+            "title": "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsSaveAgentTemplateRequest_Properties",
+            "type": "object",
+            "description": "POST /v3/agents/templates: saves an agent's definition as an agent template, with no deploy.",
+            "additionalProperties": false,
+            "properties": {
+              "agent_id": {
+                "type": "string",
+                "description": "The agent whose definition is saved. Its definition must be ready for deployment.",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "description": "What the template is called, at most 120 characters. Left out, it is the agent's name.",
+                "nullable": true
+              },
+              "description": {
+                "type": "string",
+                "description": "What the template is for, at most 500 characters. Left out, it is the agent's description.",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsUpdateAgentTemplateRequest": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3AgentsRequestsAgentMutationRequest"
+          },
+          {
+            "title": "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsUpdateAgentTemplateRequest_Properties",
+            "type": "object",
+            "description": "PATCH /v3/agents/templates/{id}: a field left out stays as it is.",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "At most 120 characters; never blank.",
+                "nullable": true
+              },
+              "description": {
+                "type": "string",
+                "description": "At most 500 characters. An empty string takes it away.",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsDeleteAgentTemplateRequest": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3AgentsRequestsAgentMutationRequest"
           }
         ]
       },
@@ -47145,6 +48723,16 @@
                 "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3AgentsResponsesAgentComposerResponse"
               }
             ]
+          },
+          "template": {
+            "type": "object",
+            "description": "The agent template a deploy with save_as_template saved; left out otherwise.",
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SentDmServicesCommonServicesAgentsAgentTemplateResponse"
+              }
+            ]
           }
         }
       },
@@ -47283,7 +48871,7 @@
             "properties": {
               "goal": {
                 "type": "string",
-                "description": "What the agent should do, in the caller's own words. With a goal, Sent writes the agent's definition: the\nname, the instructions and the senders are worked out from it and from the account. The name, model,\nchannels, sender numbers, lifetime, guardrails and voice sent with it are kept; instructions and tools are\nnot taken with a goal, because Sent writes them. Without a goal, the request is the agent's spec and\nname is required.",
+                "description": "What the agent should do, in the caller's own words. With a goal, Sent writes the agent's definition: the\nname, the instructions and the senders are worked out from it and from the account. The name, orchestrator,\nchannels, sender numbers, lifetime, guardrails and voice sent with it are kept; instructions and tools are\nnot taken with a goal, because Sent writes them. Without a goal, the request is the agent's spec and\nname is required.",
                 "nullable": true
               },
               "provider_keys": {
@@ -47293,6 +48881,12 @@
                 "additionalProperties": {
                   "type": "string"
                 }
+              },
+              "template_id": {
+                "type": "string",
+                "description": "An agent template (GET /v3/agents/templates) the agent is made from: its definition becomes the new\nagent's, with no goal written. Only name and icon are taken beside it. The agent is named\nname, or as the template's agent was when no agent of the context goes by that name.",
+                "format": "uuid",
+                "nullable": true
               }
             }
           }
@@ -47317,15 +48911,6 @@
               "instructions": {
                 "type": "string",
                 "nullable": true
-              },
-              "model": {
-                "type": "object",
-                "nullable": true,
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3AgentsRequestsAgentModelPayload"
-                  }
-                ]
               },
               "channels": {
                 "type": "array",
@@ -47396,14 +48981,6 @@
                 "description": "Whether the agent writes the templates it needs itself.",
                 "nullable": true
               },
-              "markets": {
-                "type": "array",
-                "description": "The countries the agent is set up for ahead of its contacts, as ISO 3166-1 alpha-2 codes: GB, not UK. A code that is not a country's is refused with 422.",
-                "nullable": true,
-                "items": {
-                  "type": "string"
-                }
-              },
               "orchestrator": {
                 "type": "object",
                 "description": "The agent's orchestrator, the model that plans for the whole agent.",
@@ -47437,27 +49014,6 @@
             }
           }
         ]
-      },
-      "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsAgentModelPayload": {
-        "type": "object",
-        "description": "One of an agent's models: the one that decides and writes with each contact (model), or its orchestrator.",
-        "additionalProperties": false,
-        "properties": {
-          "provider": {
-            "type": "string",
-            "description": "anthropic, openai or openrouter.",
-            "nullable": true
-          },
-          "id": {
-            "type": "string",
-            "nullable": true
-          },
-          "key_source": {
-            "type": "string",
-            "description": "Whose key pays for the model: sent (Sent's, the default) or agent, the agent's own key for the provider (provider_keys). An OpenRouter model runs only on the agent's own.",
-            "nullable": true
-          }
-        }
       },
       "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsAgentLifetimePayload": {
         "type": "object",
@@ -47496,14 +49052,35 @@
           }
         }
       },
-      "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsAgentVoiceModelPayload": {
+      "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsAgentModelPayload": {
         "type": "object",
-        "description": "The voice model and voice picked for an agent's calls. An OpenAI Realtime model (gpt-realtime-2.1, gpt-realtime-2.1-mini), an OpenAI Live model (gpt-live-1.1, gpt-live-1), one of ElevenLabs' speech to speech models (eleven_realtime_v1_mini, eleven_realtime_v1_max) or one of Google's Gemini Live models (gemini-3.8-live, gemini-3.8-live-extended-thinking) hears and speaks the calls itself, in that voice. Any other pick is kept as the choice, and those calls are spoken by Sent's standard speech.",
+        "description": "The agent's orchestrator: the model that writes what a decision to message needs and sends it. What decides is Sent's, and no field of an agent.",
         "additionalProperties": false,
         "properties": {
           "provider": {
             "type": "string",
-            "description": "openai, elevenlabs or google.",
+            "description": "anthropic, openai or openrouter.",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "key_source": {
+            "type": "string",
+            "description": "Whose key pays for the model: sent (Sent's, the default) or agent, the agent's own key for the provider (provider_keys). An OpenRouter model runs only on the agent's own.",
+            "nullable": true
+          }
+        }
+      },
+      "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsAgentVoiceModelPayload": {
+        "type": "object",
+        "description": "The voice model and voice picked for an agent's calls. An OpenAI Realtime model (gpt-realtime-2.1, gpt-realtime-2.1-mini), an OpenAI Live model (gpt-live-1.1, gpt-live-1), one of ElevenLabs' speech to speech models (eleven_realtime_v1_mini, eleven_realtime_v1_max) or one of Google's Gemini Live models (gemini-3.8-live, gemini-3.8-live-extended-thinking) or Phonic's (phonic-1, on Sent's key only) hears and speaks the calls itself, in that voice. Any other pick is kept as the choice, and those calls are spoken by Sent's standard speech.",
+        "additionalProperties": false,
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "openai, elevenlabs, google or phonic.",
             "nullable": true
           },
           "id": {
@@ -47512,12 +49089,12 @@
           },
           "voice": {
             "type": "string",
-            "description": "The voice of that model: a name (OpenAI, Google) or a voice id (ElevenLabs).",
+            "description": "The voice of that model: a name (OpenAI, Google) or a voice id (ElevenLabs, Phonic).",
             "nullable": true
           },
           "key_source": {
             "type": "string",
-            "description": "sent (the default) or agent.",
+            "description": "sent (the default) or agent. Phonic's models run on Sent's key only.",
             "nullable": true
           }
         }
@@ -47527,6 +49104,26 @@
         "allOf": [
           {
             "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3AgentsRequestsAgentMutationRequest"
+          }
+        ]
+      },
+      "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsDeployAgentRequest": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SentDmServicesEndpointsCustomerAPIv3AgentsRequestsAgentActionRequest"
+          },
+          {
+            "title": "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsDeployAgentRequest_Properties",
+            "type": "object",
+            "description": "POST /v3/agents/{id}/deploy.",
+            "additionalProperties": false,
+            "properties": {
+              "save_as_template": {
+                "type": "boolean",
+                "description": "Also saves the agent's definition as an agent template of the calling context, named after the agent; the\nanswer's template is the one saved. False by default. Nothing is saved when the deploy is refused."
+              }
+            }
           }
         ]
       },
@@ -47849,18 +49446,23 @@
       },
       "SentDmServicesEndpointsCustomerAPIv3AgentsRequestsAgentInstanceRequest": {
         "type": "object",
-        "description": "One instance to start: the contact the agent works, and what it is told about the contact.",
+        "description": "One instance to start: the contact the agent works, by number or by id, and what it is told about the contact.",
         "additionalProperties": false,
         "properties": {
+          "phone_number": {
+            "type": "string",
+            "description": "The contact's number in E.164 format. A contact of the profile with it is used, or made. Give this or contact_id.",
+            "nullable": true
+          },
           "contact_id": {
             "type": "string",
-            "description": "A contact of the agent's profile. Contacts are made with POST /v3/contacts; this never makes one.",
+            "description": "A contact of the agent's profile, as POST /v3/contacts made it. Give this or phone_number.",
             "format": "uuid",
             "nullable": true
           },
           "context": {
             "type": "object",
-            "description": "Free-form context the agent sees for this contact (name, appointment, order).",
+            "description": "What the agent is told about the contact: a JSON object of your own fields (name, appointment, order), at most 16 KB.",
             "nullable": true,
             "allOf": [
               {
