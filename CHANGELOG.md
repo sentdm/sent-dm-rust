@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/sentdm/sent-dm-rust/compare/v0.3.0...v0.4.0) (2026-11-27)
+
+
+### Features
+
+* **api:** sync OpenAPI spec from production ([d050803](https://github.com/sentdm/sent-dm-rust/commit/d050803239c28aff63c2b20b43d95c4d3a2b05e1))
+
 ## [0.3.0](https://github.com/sentdm/sent-dm-rust/compare/v0.2.0...v0.3.0) (2026-11-24)
 
 
